@@ -1,5 +1,5 @@
 pluginManagement {
-    // Use FLUTTER_ROOT environment variable directly (Standard on Codemagic)
+    // Using FLUTTER_ROOT which is standard on Codemagic
     val flutterSdkPath = System.getenv("FLUTTER_ROOT") ?: "${System.getProperty("user.home")}/flutter"
     println("Using Flutter SDK path: $flutterSdkPath")
 
@@ -14,8 +14,9 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.1.0" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.0" apply false
+    // Using the versions from your build.gradle to ensure compatibility
+    id("com.android.application") version "8.7.3" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
 }
 
 include(":app")
