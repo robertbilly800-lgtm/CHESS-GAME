@@ -1,0 +1,33 @@
+workflows:
+  android-release:
+    name: Chess Grandmaster - Release APK
+    max_build_duration: 120
+    environment:
+      flutter: 3.39.0-0.2.pre
+      java: 17
+    scripts:
+      - name: Write key.properties
+        script: |
+          cat > android/key.properties << 'KEYEOF'
+          storePassword=chessmate123
+          keyPassword=chessmate123
+          keyAlias=chess-mate
+          storeFile=release-keystore.jks
+          KEYEOF
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build release APK (arm64 + armv7 only)
+        script: |
+          flutter build apk --release \
+            --build-name=1.0.5 \
+            --build-number=6 \
+            --target-platform=android-arm,android-arm64
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
+    publishing:
+      email:
+        recipients:
+          - your@email.com
+        notify:
+          success: true
+          failure: true

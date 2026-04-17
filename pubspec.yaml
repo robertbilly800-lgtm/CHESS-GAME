@@ -1,0 +1,51 @@
+name: chess_sms_app
+description: Chess Grandmaster - Complete chess app with AI, Bluetooth, SMS and Online play.
+publish_to: 'none'
+version: 1.0.5+6
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Chess logic
+  chess: ^0.8.1
+
+  # SMS multiplayer - telephony is discontinued but still works on Android
+  telephony: ^0.2.0
+
+  # Bluetooth multiplayer - latest stable
+  flutter_blue_plus: ^1.35.3
+
+  # Sound effects - compatible with Flutter 3.39
+  audioplayers: ^6.1.0
+
+  # Stockfish AI engine - DO NOT REMOVE - this provides libstockfish.so (~80MB/arch)
+  stockfish_flutter_plus: ^1.0.1
+
+  # UI & utilities
+  flutter_animate: ^4.5.0
+  google_fonts: ^6.2.1
+  permission_handler: ^11.3.1
+  vibration: ^3.1.8
+  flutter_svg: ^2.0.10+1
+  shared_preferences: ^2.3.4
+  uuid: ^4.5.1
+  flutter_contacts: ^1.1.9+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/chess_hero_bg.png
+    - assets/sounds/move.mp3
+    - assets/sounds/capture.mp3
+    - assets/sounds/check.mp3
+    - assets/sounds/game_over.mp3
+    - assets/chess_pieces/
