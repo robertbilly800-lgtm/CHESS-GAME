@@ -1,9 +1,9 @@
 // Project-level build.gradle
-// AGP 8.7.3 + Kotlin 2.1.0 — required for Flutter 3.39.0-0.2.pre
+// AGP 8.7.3 + Kotlin 1.9.24 — compatible with Flutter 3.x
 
 plugins {
     id "com.android.application" version "8.7.3" apply false
-    id "org.jetbrains.kotlin.android" version "2.1.0" apply false
+    id "org.jetbrains.kotlin.android" version "1.9.24" apply false
 }
 
 allprojects {
