@@ -243,10 +243,10 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
 
   void _applyOpponentMove(String uci) {
     if (!mounted || uci.length < 4 || _gameOver) return;
-    final move = _game.move({'from': uci.substring(0, 2), 'to': uci.substring(2, 4), 'promotion': 'q'});
-    if (move != null) {
+    final dynamic m = _game.move({'from': uci.substring(0, 2), 'to': uci.substring(2, 4), 'promotion': 'q'});
+    if (m != null) {
       _moveAnimCtrl.forward(from: 0);
-      if (move['captured'] != null) _sound?.playCapture(); else _sound?.playMove();
+      if (m['captured'] != null) _sound?.playCapture(); else _sound?.playMove();
       if (_game.in_check) _sound?.playCheck();
       _updateStatus();
       if (widget.mode == 'online') setState(() => _isMyTurn = true);
@@ -267,10 +267,10 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     if (!mounted) return;
 
     if (best != null && best.length >= 4) {
-      final move = _game.move({'from': best.substring(0, 2), 'to': best.substring(2, 4), 'promotion': 'q'});
-      if (move != null) {
+      final dynamic m = _game.move({'from': best.substring(0, 2), 'to': best.substring(2, 4), 'promotion': 'q'});
+      if (m != null) {
         _moveAnimCtrl.forward(from: 0);
-        if (move['captured'] != null) _sound?.playCapture(); else _sound?.playMove();
+        if (m['captured'] != null) _sound?.playCapture(); else _sound?.playMove();
         if (_game.in_check) _sound?.playCheck();
         _updateStatus();
         if (_game.game_over) { _clockTimer?.cancel(); _sound?.playGameOver(); _gameOver = true; _showGameOverDialog(); }
