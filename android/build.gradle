@@ -1,12 +1,11 @@
 buildscript {
-    ext.kotlin_version = '1.9.0' // Make sure this version is stable
+    ext.kotlin_version = '1.9.0'
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        // Make sure this matches your Flutter version
         classpath 'com.android.tools.build:gradle:7.3.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
@@ -27,20 +26,7 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-// *************** THIS IS THE MAGIC FIX FOR TELEPHONY ***************
-// This loop forces every old plugin to have a namespace so they don't crash.
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android {
-                if (namespace == null) {
-                    namespace = project.group
-                }
-            }
-        }
-    }
-}
-// ********************************************************************
+// REMOVED the problem-causing afterEvaluate block
 
 tasks.register('clean', Delete) {
     delete rootProject.buildDir
