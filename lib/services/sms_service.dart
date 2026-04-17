@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:custom_advanced_sms/custom_advanced_sms.dart';
+import 'package:another_telephony/another_telephony.dart';
 
 class SmsService {
   static SmsService? _instance;
