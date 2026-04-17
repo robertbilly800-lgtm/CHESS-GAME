@@ -1,14 +1,3 @@
 // Project-level build.gradle
-// AGP 8.7.3 + Kotlin 2.1.0 — required for Flutter 3.39.0-0.2.pre
-
-plugins {
-    id "com.android.application" version "8.7.3" apply false
-    id "org.jetbrains.kotlin.android" version "2.1.0" apply false
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// Plugins and repositories are now managed in settings.gradle.kts
+// to prevent version conflicts.
