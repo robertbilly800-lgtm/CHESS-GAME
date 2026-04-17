@@ -1,12 +1,13 @@
-import java.util.Properties
-
 pluginManagement {
-    // This logic must be inside the pluginManagement block
+    // Using full package names to ensure the compiler finds the classes
     val flutterSdkPath = {
-        val properties = Properties()
-        file("local.properties").inputStream().use { properties.load(it) }
+        val properties = java.util.Properties()
+        val localPropertiesFile = file("local.properties")
+        if (localPropertiesFile.exists()) {
+            properties.load(java.io.FileInputStream(localPropertiesFile))
+        }
         val flutterSdkPath = properties.getProperty("flutter.sdk")
-        require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
+        checkNotNull(flutterSdkPath) { "flutter.sdk not set in local.properties" }
         flutterSdkPath
     }()
 
