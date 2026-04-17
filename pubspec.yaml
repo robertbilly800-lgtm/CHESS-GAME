@@ -14,7 +14,7 @@ dependencies:
   chess: ^0.8.1
 
   # SMS multiplayer - telephony is discontinued but still works on Android
-  custom_advanced_sms: ^1.2.1
+  another_telephony: ^0.4.1
 
   # Bluetooth multiplayer - latest stable
   flutter_blue_plus: ^1.35.3
