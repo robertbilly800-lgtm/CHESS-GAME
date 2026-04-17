@@ -19,7 +19,7 @@ class AiService {
   Future<void> init() async {
     if (_disposed || _stockfish != null) return;
     try {
-      _stockfish = Stockfish();
+      _stockfish = Stockfish(flavor: StockfishFlavor.embeddedNNUE);
       if (_stockfish == null) throw Exception('Stockfish failed to start.');
 
       // Listen for output immediately
