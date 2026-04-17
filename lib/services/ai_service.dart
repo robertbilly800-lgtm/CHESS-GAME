@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:stockfish_flutter_plus/stockfish_flutter_plus.dart';
+import 'package:multistockfish/multistockfish.dart';
 
 class AiService {
   Stockfish? _stockfish;
