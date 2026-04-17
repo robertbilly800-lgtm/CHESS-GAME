@@ -23,7 +23,7 @@ dependencies:
   audioplayers: ^6.1.0
 
   # Stockfish AI engine - DO NOT REMOVE - this provides libstockfish.so (~80MB/arch)
-  stockfish_flutter_plus: ^1.0.1
+  multistockfish: ^0.3.0
 
   # UI & utilities
   flutter_animate: ^4.5.0
