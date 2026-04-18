@@ -129,8 +129,15 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
           _sms = SmsService();
           if (await _sms!.isSupported()) {
             final ok = await _requestSmsPerms();
-            if (ok) { _sms!.listenForMoves(onMoveReceived: _applyOpponentMove); _startClock(); }
-            else _snack('SMS permissions denied.');
+            if (ok) {
+              try {
+                _sms!.listenForMoves(onMoveReceived: _applyOpponentMove);
+                _startClock();
+              } catch (e) {
+                _snack('Failed to listen for SMS: $e');
+                setState(() { _isHardwareValid = false; _errorMsg = 'SMS listen error: $e'; });
+              }
+            } else _snack('SMS permissions denied.');
           } else {
             setState(() { _isHardwareValid = false; _errorMsg = 'SMS not available. Check SIM card.'; });
           }
@@ -172,6 +179,11 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   Future<bool> _requestSmsPerms() async {
     final s = await Permission.sms.request();
     final p = await Permission.phone.request();
+    if (!s.isGranted || !p.isGranted) {
+      if (await Permission.sms.isPermanentlyDenied || await Permission.phone.isPermanentlyDenied) {
+        openAppSettings();
+      }
+    }
     return s.isGranted && p.isGranted;
   }
 
@@ -228,10 +240,16 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     if (widget.mode == 'ai' && !_isWhiteTurn(_game)) {
       _triggerAiMove();
     }
-    if (widget.mode == 'sms' && widget.opponentPhone != null) {
-      _sms?.sendMove(phoneNumber: widget.opponentPhone!, sanMove: uci, onResult: (ok) {
-        if (!ok && mounted) _snack('SMS send failed.');
-      });
+    // SMS sending with null/empty check
+    if (widget.mode == 'sms') {
+      final phone = widget.opponentPhone;
+      if (phone != null && phone.trim().isNotEmpty) {
+        _sms?.sendMove(phoneNumber: phone, sanMove: uci, onResult: (ok) {
+          if (!ok && mounted) _snack('SMS send failed.');
+        });
+      } else {
+        _snack('Invalid phone number. Cannot send move.');
+      }
     }
     if (widget.mode == 'bluetooth') _bt?.sendMove(uci);
     if (widget.mode == 'online') {
@@ -259,7 +277,6 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     if (_ai == null || _aiThinking || _gameOver) return;
     setState(() => _aiThinking = true);
 
-    // Small natural delay so it doesn't feel instant
     await Future.delayed(const Duration(milliseconds: 300));
 
     final fen = _game.fen;
