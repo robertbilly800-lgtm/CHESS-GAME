@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:multistockfish/multistockfish.dart';
 
 class AiService {
-  // Use the singleton instance
   final Stockfish _stockfish = Stockfish.instance;
   final _outputController = StreamController<String>.broadcast();
   bool _isReady = false;
@@ -21,10 +20,8 @@ class AiService {
     if (_disposed) return;
 
     try {
-      // Start the engine (this is async and must be awaited)
       await _stockfish.start();
       
-      // Listen to stdout
       _stockfish.stdout.listen((line) {
         if (_disposed) return;
         if (line.trim() == 'readyok' || line.trim() == 'uciok') {
@@ -33,7 +30,6 @@ class AiService {
         _outputController.add(line);
       });
 
-      // Wait for the engine to be ready (using state stream)
       await _stockfish.state.firstWhere(
         (state) => state == StockfishState.ready,
         timeout: const Duration(seconds: 8),
@@ -42,7 +38,6 @@ class AiService {
       _stockfish.stdin = 'uci';
       _stockfish.stdin = 'isready';
       
-      // Give a short moment for the ready response
       await Future.delayed(const Duration(milliseconds: 500));
       _isReady = true;
       
@@ -63,7 +58,6 @@ class AiService {
     }
   }
 
-  /// Returns best move UCI string (e.g. "e2e4"), or null on failure.
   Future<String?> getBestMove(String fen, {int movetime = 800}) async {
     if (!_isReady || _thinking) return null;
     _thinking = true;
@@ -90,7 +84,6 @@ class AiService {
       }
     });
 
-    // Stop any previous search first
     _stockfish.stdin = 'stop';
     _stockfish.stdin = 'position fen $fen';
     _stockfish.stdin = 'go movetime $movetime';
