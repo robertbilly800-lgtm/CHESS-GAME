@@ -1,63 +1,65 @@
-import 'package:flutter/foundation.dart';
 import 'package:another_telephony/telephony.dart';
+import 'package:flutter/foundation.dart';
+import 'logger_service.dart';  // <-- ADDED for logging
 
 class SmsService {
-  static SmsService? _instance;
-  factory SmsService() => _instance ??= SmsService._();
-  SmsService._();
-
-  final Telephony _tel = Telephony.instance;
-  static const String _prefix = 'CHESS:';
-  bool _listening = false;
+  final Telephony _telephony = Telephony.instance;
+  Function(String)? _onMoveReceived;
 
   Future<bool> isSupported() async {
-    try {
-      return await _tel.isSmsCapable ?? false;
-    } catch (e) {
-      debugPrint('[SMS] isSupported error: $e');
-      return false;
+    final supported = await _telephony.isPhoneAvailable ?? false;
+    await AppLogger().log('SMS isSupported: $supported');  // <-- ADDED
+    return supported;
+  }
+
+  Future<void> listenForMoves({required Function(String) onMoveReceived}) async {
+    _onMoveReceived = onMoveReceived;
+    
+    final granted = await _telephony.requestSmsPermissions;
+    await AppLogger().log('SMS permissions granted: $granted');  // <-- ADDED
+    
+    if (granted != true) {
+      debugPrint('SMS permissions not granted');
+      return;
     }
+
+    _telephony.listenIncomingSms(
+      onNewMessage: (SmsMessage message) {
+        final body = message.body ?? '';
+        await AppLogger().log('SMS received: $body');  // <-- ADDED
+        if (body.length >= 4 && body.contains(RegExp(r'^[a-h][1-8][a-h][1-8]'))) {
+          final move = body.substring(0, 4);
+          _onMoveReceived?.call(move);
+          AppLogger().log('Parsed move: $move');  // <-- ADDED
+        } else {
+          AppLogger().log('SMS body did not contain a valid move');  // <-- ADDED
+        }
+      },
+      listenInBackground: false,
+    );
   }
 
   Future<void> sendMove({
     required String phoneNumber,
     required String sanMove,
-    void Function(bool)? onResult,
+    Function(bool)? onResult,
   }) async {
+    if (phoneNumber.trim().isEmpty) {
+      await AppLogger().log('SMS send failed: empty phone number');  // <-- ADDED
+      onResult?.call(false);
+      return;
+    }
     try {
-      final clean = phoneNumber.trim();
-      if (clean.isEmpty) { onResult?.call(false); return; }
-      _tel.sendSms(
-        to: clean,
-        message: '$_prefix$sanMove',
-        statusListener: (SendStatus status) {
-          onResult?.call(status == SendStatus.SENT);
-        },
+      await _telephony.sendSms(
+        to: phoneNumber,
+        message: sanMove,
       );
+      await AppLogger().log('SMS sent to $phoneNumber: $sanMove');  // <-- ADDED
+      onResult?.call(true);
     } catch (e) {
-      debugPrint('[SMS] sendMove error: $e');
+      await AppLogger().log('SMS send error to $phoneNumber: $e');  // <-- ADDED
+      debugPrint('SMS send error: $e');
       onResult?.call(false);
     }
   }
-
-  void listenForMoves({required void Function(String) onMoveReceived}) {
-    if (_listening) return;
-    try {
-      _tel.listenIncomingSms(
-        onNewMessage: (SmsMessage msg) {
-          final body = msg.body;
-          if (body == null || !body.startsWith(_prefix)) return;
-          final move = body.replaceFirst(_prefix, '').trim();
-          if (move.isNotEmpty) onMoveReceived(move);
-        },
-        listenInBackground: false, // true crashes on some devices without background isolate
-      );
-      _listening = true;
-      debugPrint('[SMS] listening');
-    } catch (e) {
-      debugPrint('[SMS] listenForMoves error: $e');
-    }
-  }
-
-  void stopListening() => _listening = false;
 }
