@@ -3,6 +3,12 @@
     <!-- ── Internet ──────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- ── Storage (for debug logging) ───────────────────────────── -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
     <!-- ── SMS ──────────────────────────────────────────────────── -->
     <uses-permission android:name="android.permission.SEND_SMS"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS"/>
