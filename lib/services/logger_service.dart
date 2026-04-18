@@ -8,8 +8,7 @@ class AppLogger {
 
   Future<File> _getLogFile() async {
     final dir = await getExternalStorageDirectory();
-    final logFile = File('${dir!.path}/chess_app_log.txt');
-    return logFile;
+    return File('${dir!.path}/chess_app_log.txt');
   }
 
   Future<void> log(String message) async {
@@ -18,7 +17,7 @@ class AppLogger {
       final timestamp = DateTime.now().toIso8601String();
       await file.writeAsString('[$timestamp] $message\n', mode: FileMode.append);
     } catch (e) {
-      // Silently fail if logging fails
+      // Ignore logging errors
     }
   }
 
@@ -29,12 +28,5 @@ class AppLogger {
     } catch (e) {
       return 'No logs yet.';
     }
-  }
-
-  Future<void> clearLog() async {
-    try {
-      final file = await _getLogFile();
-      await file.delete();
-    } catch (_) {}
   }
 }
