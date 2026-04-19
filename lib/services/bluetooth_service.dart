@@ -63,50 +63,60 @@ class ChessBluetoothService {
 
   // ── Connect + discover chess service ─────────────────────────────────────
   Future<bool> connectToDevice(BluetoothDevice device) async {
-    try {
-      _emit('Connecting to ${device.platformName}…');
-      await device.connect(timeout: const Duration(seconds: 12));
-      _device = device;
+    int attempts = 0;
+    const maxAttempts = 3;
 
-      device.connectionState.listen((s) {
-        if (s == BluetoothConnectionState.disconnected) {
-          _device = null; _moveChar = null; _pinChar = null;
-          _emit('Disconnected.');
-        }
-      });
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        _emit('Connecting to ${device.platformName} (Attempt $attempts)…');
+        await device.connect(timeout: const Duration(seconds: 12));
+        _device = device;
 
-      final services = await device.discoverServices();
-      for (final svc in services) {
-        if (svc.uuid.toString().toLowerCase() != _svcUuid) continue;
-        for (final c in svc.characteristics) {
-          final uuid = c.uuid.toString().toLowerCase();
-          if (uuid == _moveUuid) {
-            _moveChar = c;
-            await c.setNotifyValue(true);
-            c.onValueReceived.listen((v) {
-              final msg = utf8.decode(v).trim();
-              debugPrint('[BT] move received: $msg');
-              _moveCtrl.add(msg);
-            });
+        device.connectionState.listen((s) {
+          if (s == BluetoothConnectionState.disconnected) {
+            _device = null; _moveChar = null; _pinChar = null;
+            _emit('Disconnected.');
           }
-          if (uuid == _pinUuid) {
-            _pinChar = c;
-            await c.setNotifyValue(true);
-            c.onValueReceived.listen((v) {
-              final pin = utf8.decode(v).trim();
-              debugPrint('[BT] PIN received: $pin');
-              _pinCtrl.add(pin);
-            });
+        });
+
+        final services = await device.discoverServices();
+        for (final svc in services) {
+          if (svc.uuid.toString().toLowerCase() != _svcUuid) continue;
+          for (final c in svc.characteristics) {
+            final uuid = c.uuid.toString().toLowerCase();
+            if (uuid == _moveUuid) {
+              _moveChar = c;
+              await c.setNotifyValue(true);
+              c.onValueReceived.listen((v) {
+                final msg = utf8.decode(v).trim();
+                debugPrint('[BT] move received: $msg');
+                _moveCtrl.add(msg);
+              });
+            }
+            if (uuid == _pinUuid) {
+              _pinChar = c;
+              await c.setNotifyValue(true);
+              c.onValueReceived.listen((v) {
+                final pin = utf8.decode(v).trim();
+                debugPrint('[BT] PIN received: $pin');
+                _pinCtrl.add(pin);
+              });
+            }
           }
         }
+        _emit('Connected to ${device.platformName}!');
+        return true;
+      } catch (e) {
+        debugPrint('[BT] connect error (Attempt $attempts): $e');
+        if (attempts >= maxAttempts) {
+          _emit('Connection failed after $maxAttempts attempts: $e');
+          return false;
+        }
+        await Future.delayed(const Duration(seconds: 2)); // Wait before retry
       }
-      _emit('Connected to ${device.platformName}!');
-      return true;
-    } catch (e) {
-      _emit('Connection failed: $e');
-      debugPrint('[BT] connect error: $e');
-      return false;
     }
+    return false;
   }
 
   // ── Send PIN to other device ──────────────────────────────────────────────

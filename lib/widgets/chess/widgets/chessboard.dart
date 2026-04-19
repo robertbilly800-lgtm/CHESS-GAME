@@ -281,7 +281,6 @@ class _ChessboardState extends State<_Chessboard> {
   List<Widget> _buildPieces() {
     final cs = widget.size / 8;
     final widgets = <Widget>[];
-    final idx = <String, int>{};
 
     final entries = _squares.entries.where((e) => e.value != null).toList()
       ..sort((a, b) => a.key.compareTo(b.key));
@@ -292,24 +291,25 @@ class _ChessboardState extends State<_Chessboard> {
       final file = sq.codeUnitAt(0) - 97;
       final rank = int.parse(sq[1]) - 1;
 
-      // Skip piece under drag
-      if (_dnd != null && _dnd!.startCell.$1 == file && _dnd!.startCell.$2 == rank) continue;
-
-      final i = idx[piece.name] ?? 0;
-      idx[piece.name] = i + 1;
+      final isBeingDragged = _dnd != null && _dnd!.startCell.$1 == file && _dnd!.startCell.$2 == rank;
 
       final col = widget.blackSideAtBottom ? 7 - file : file;
       final row = widget.blackSideAtBottom ? rank : 7 - rank;
 
       widgets.add(AnimatedPositioned(
-        key: ValueKey('piece_${piece.name}_$i'),
+        // Key is based on the square 'sq' to keep it stable during drag
+        // If we are dragging this piece, we give it a unique suffix to avoid collisions
+        key: ValueKey('piece_sq_${piece.name}_$sq'),
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeOutCubic,
         left: col * cs,
         top:  row * cs,
         width: cs,
         height: cs,
-        child: _pieceWidget(piece.name, cs),
+        child: Opacity(
+          opacity: isBeingDragged ? 0.0 : 1.0, 
+          child: _pieceWidget(piece.name, cs)
+        ),
       ));
     }
     return widgets;

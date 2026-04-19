@@ -1,0 +1,22 @@
+[
+    {
+        "merged": "com.shounakmulay.telephony.another_telephony-release-26:/layout/notification_template_part_chronometer.xml",
+        "source": "com.shounakmulay.telephony.another_telephony-core-1.13.1-16:/layout/notification_template_part_chronometer.xml"
+    },
+    {
+        "merged": "com.shounakmulay.telephony.another_telephony-release-26:/layout/custom_dialog.xml",
+        "source": "com.shounakmulay.telephony.another_telephony-core-1.13.1-16:/layout/custom_dialog.xml"
+    },
+    {
+        "merged": "com.shounakmulay.telephony.another_telephony-release-26:/layout/ime_base_split_test_activity.xml",
+        "source": "com.shounakmulay.telephony.another_telephony-core-1.13.1-16:/layout/ime_base_split_test_activity.xml"
+    },
+    {
+        "merged": "com.shounakmulay.telephony.another_telephony-release-26:/layout/ime_secondary_split_test_activity.xml",
+        "source": "com.shounakmulay.telephony.another_telephony-core-1.13.1-16:/layout/ime_secondary_split_test_activity.xml"
+    },
+    {
+        "merged": "com.shounakmulay.telephony.another_telephony-release-26:/layout/notification_template_part_time.xml",
+        "source": "com.shounakmulay.telephony.another_telephony-core-1.13.1-16:/layout/notification_template_part_time.xml"
+    }
+]

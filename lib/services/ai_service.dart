@@ -19,10 +19,12 @@ class AiService {
   Future<void> init() async {
     if (_disposed) return;
     try {
+      debugPrint('[AI] Starting Stockfish engine...');
       _stockfish = Stockfish();
 
       _stockfish!.stdout.listen((line) {
         if (_disposed) return;
+        debugPrint('[AI] OUT: $line');
         if (line.trim() == 'readyok' || line.trim() == 'uciok') {
           _isReady = true;
         }
@@ -31,21 +33,29 @@ class AiService {
 
       int waited = 0;
       while (_stockfish!.state.value != StockfishState.ready) {
-        if (waited > 8000) throw Exception('Stockfish boot timeout');
-        await Future.delayed(const Duration(milliseconds: 100));
-        waited += 100;
+        if (waited > 10000) throw Exception('Stockfish boot timeout - Engine failed to reach READY state');
+        await Future.delayed(const Duration(milliseconds: 200));
+        waited += 200;
+        if (waited % 2000 == 0) debugPrint('[AI] Still waiting for engine ready... (${waited}ms)');
       }
 
+      debugPrint('[AI] Sending UCI handshake...');
       _stockfish!.stdin = 'uci';
       _stockfish!.stdin = 'isready';
-      await Future.delayed(const Duration(milliseconds: 500));
-      _isReady = true;
+      
+      // Give it a bit more time for the handshake in the init phase
+      await Future.delayed(const Duration(milliseconds: 1000));
+      
+      if (!_isReady) {
+        debugPrint('[AI] Warning: engine did not acknowledge UCI/ISREADY within 1s. Forcing ready state.');
+        _isReady = true;
+      }
 
-      debugPrint('[AI] Ready');
+      debugPrint('[AI] Engine fully initialized and ready.');
     } catch (e) {
       _isHardwareSupported = false;
       _errorMsg = e.toString();
-      debugPrint('[AI] Init error: $e');
+      debugPrint('[AI] FATAL Init error: $e');
     }
   }
 

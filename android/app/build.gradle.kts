@@ -29,13 +29,13 @@ android {
 
     defaultConfig {
         applicationId = "com.grandmaster.chess.pro"
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
         ndk {
-            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86_64"))
         }
     }
 
@@ -51,8 +51,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled   = false
-            isShrinkResources = false
+            isMinifyEnabled   = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig     = signingConfigs.getByName("release")
         }
     }

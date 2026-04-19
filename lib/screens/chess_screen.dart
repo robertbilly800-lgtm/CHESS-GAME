@@ -245,7 +245,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     if (widget.mode == 'sms') {
       final phone = widget.opponentPhone;
       if (phone != null && phone.trim().isNotEmpty) {
-        _sms?.sendMove(phoneNumber: phone, sanMove: uci, onResult: (ok) {
+        _sms?.sendMove(phoneNumber: phone, uciMove: uci, onResult: (ok) {
           if (!ok && mounted) _snack('SMS send failed.');
         });
       } else {
