@@ -1,35 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'screens/dashboard_screen.dart';
+import 'package:crashlog/crashlog.dart';
+import 'screens/home_screen.dart'; // adjust the import to your actual home screen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  runApp(const ChessApp());
+
+  // Initialize crashlog to capture all errors and print logs
+  await Crashlog.init(
+    enabled: true,
+    enableScreenshots: true,
+    autoOpenOnError: false,
+    maxLogs: 50,
+    maxConsoleLogs: 1000,
+    logRetentionDays: 7,
+    showDeviceInfo: true,
+    logFileName: "error_logs.json",
+    consoleLogFileName: "console_logs.json",
+    screenshotFolder: "screenshots",
+  );
+
+  runApp(const MyApp());
 }
 
-class ChessApp extends StatelessWidget {
-  const ChessApp({Key? key}) : super(key: key);
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Chess Grandmaster',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        primaryColor: const Color(0xFF00B873),
-        scaffoldBackgroundColor: const Color(0xFF0A0A0E),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF151520),
-          elevation: 0,
-        ),
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-      ),
-      home: const DashboardScreen(),
+      theme: ThemeData.dark(),
+      home: const HomeScreen(), // or whatever your main screen is called
     );
   }
 }
