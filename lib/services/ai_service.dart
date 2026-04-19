@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:multistockfish/multistockfish.dart';
-import 'logger_service.dart';  // <-- ADDED for logging
+import 'logger_service.dart';
 
 class AiService {
   Stockfish? _stockfish;
@@ -19,10 +19,10 @@ class AiService {
 
   Future<void> init() async {
     if (_disposed) return;
-
     try {
       _stockfish = Stockfish();
-
+      await _stockfish!.start();  // CRITICAL: must start the engine
+      
       _stockfish!.stdout.listen((line) {
         if (_disposed) return;
         if (line.trim() == 'readyok' || line.trim() == 'uciok') {
@@ -31,6 +31,7 @@ class AiService {
         _outputController.add(line);
       });
 
+      // Wait for engine to be ready
       int waited = 0;
       while (_stockfish!.state.value != StockfishState.ready) {
         if (waited > 8000) throw Exception('Stockfish boot timeout');
@@ -40,17 +41,16 @@ class AiService {
 
       _stockfish!.stdin = 'uci';
       _stockfish!.stdin = 'isready';
-
       await Future.delayed(const Duration(milliseconds: 500));
       _isReady = true;
 
       debugPrint('[AI] Engine initialized successfully');
-      await AppLogger().log('AI initialized successfully');  // <-- ADDED
+      await AppLogger().log('AI initialized successfully');
     } catch (e) {
       _isHardwareSupported = false;
       _errorMsg = e.toString();
       debugPrint('[AI] Init error: $e');
-      await AppLogger().log('AI init error: $e');  // <-- ADDED
+      await AppLogger().log('AI init error: $e');
     }
   }
 
@@ -95,9 +95,8 @@ class AiService {
 
     final result = await completer.future;
     _thinking = false;
-
     if (result == null) {
-      await AppLogger().log('AI getBestMove returned null for fen: $fen');  // <-- ADDED
+      await AppLogger().log('AI getBestMove returned null for fen: $fen');
     }
     return result;
   }
