@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:crashlog/crashlog.dart';          // ADDED
 import '../widgets/chess/simple_chess_board.dart';
 import 'package:chess/chess.dart' as ch;
 import 'package:google_fonts/google_fonts.dart';
@@ -368,6 +369,13 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     if (!_isHardwareValid) return _buildErrorScreen();
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Chess ${widget.mode.toUpperCase()}'),
+        actions: const [
+          ErrorRecorderIconButton(),   // CRASHLOG BUTTON
+        ],
+        backgroundColor: AppColors.cardDark,
+      ),
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
@@ -376,6 +384,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Column(
               children: [
+                // Header row (without back button – AppBar handles navigation)
                 _buildHeader(),
                 const SizedBox(height: 10),
                 _buildPlayerCard(
@@ -409,6 +418,43 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
           ),
         ),
       ),
+    );
+  }
+
+  // Modified header: no back button, only status and AI menu / undo
+  Widget _buildHeader() {
+    final status = widget.mode == 'online' && _onlineStatus.isNotEmpty ? _onlineStatus
+        : _btStatus.isNotEmpty ? _btStatus : _statusMsg;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(10)),
+            child: Row(children: [
+              Container(width: 7, height: 7, decoration: BoxDecoration(shape: BoxShape.circle, color: _gameOver ? Colors.red : AppColors.primaryGreen)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(status, style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12), overflow: TextOverflow.ellipsis)),
+              if (_aiThinking) const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGreen)),
+            ]),
+          ),
+        ),
+        if (widget.mode == 'ai') ...[const SizedBox(width: 8), _buildAiMenu()],
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () {
+            if (_moveHistory.isNotEmpty) {
+              setState(() { _game.undo_move(); if (_moveHistory.isNotEmpty) _moveHistory.removeLast(); _updateStatus(); });
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.undo, color: Colors.white54, size: 18),
+          ),
+        ),
+      ],
     );
   }
 
@@ -449,51 +495,6 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       ),
     ),
   );
-
-  Widget _buildHeader() {
-    final status = widget.mode == 'online' && _onlineStatus.isNotEmpty ? _onlineStatus
-        : _btStatus.isNotEmpty ? _btStatus : _statusMsg;
-
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(10)),
-            child: Row(children: [
-              Container(width: 7, height: 7, decoration: BoxDecoration(shape: BoxShape.circle, color: _gameOver ? Colors.red : AppColors.primaryGreen)),
-              const SizedBox(width: 8),
-              Expanded(child: Text(status, style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12), overflow: TextOverflow.ellipsis)),
-              if (_aiThinking) const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryGreen)),
-            ]),
-          ),
-        ),
-        if (widget.mode == 'ai') ...[const SizedBox(width: 8), _buildAiMenu()],
-        const SizedBox(width: 8),
-        GestureDetector(
-          onTap: () {
-            if (_moveHistory.isNotEmpty) {
-              setState(() { _game.undo_move(); if (_moveHistory.isNotEmpty) _moveHistory.removeLast(); _updateStatus(); });
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.undo, color: Colors.white54, size: 18),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildPlayerCard({required String name, required String elo, required int time, required List<String> captured, required bool isActive, required bool isClient}) {
     return AnimatedContainer(
