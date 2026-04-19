@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:crashlog/crashlog.dart';
-import 'screens/home_screen.dart'; // adjust the import to your actual home screen
+import 'screens/chess_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Chess Grandmaster',
       theme: ThemeData.dark(),
-      home: const HomeScreen(), // or whatever your main screen is called
+      home: const ChessScreen(mode: 'local'), // or whatever default mode you want
     );
   }
 }
