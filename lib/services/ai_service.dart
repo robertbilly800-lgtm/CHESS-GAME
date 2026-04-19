@@ -20,9 +20,9 @@ class AiService {
   Future<void> init() async {
     if (_disposed) return;
     try {
+      // Create instance – engine starts automatically (no .start() method)
       _stockfish = Stockfish();
-      await _stockfish!.start();  // CRITICAL: must start the engine
-      
+
       _stockfish!.stdout.listen((line) {
         if (_disposed) return;
         if (line.trim() == 'readyok' || line.trim() == 'uciok') {
@@ -31,7 +31,7 @@ class AiService {
         _outputController.add(line);
       });
 
-      // Wait for engine to be ready
+      // Wait for engine to become ready
       int waited = 0;
       while (_stockfish!.state.value != StockfishState.ready) {
         if (waited > 8000) throw Exception('Stockfish boot timeout');
@@ -39,6 +39,7 @@ class AiService {
         waited += 100;
       }
 
+      // Send UCI commands
       _stockfish!.stdin = 'uci';
       _stockfish!.stdin = 'isready';
       await Future.delayed(const Duration(milliseconds: 500));
