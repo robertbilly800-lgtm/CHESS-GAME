@@ -6,8 +6,6 @@ class SmsService {
   final Telephony _telephony = Telephony.instance;
   Function(String)? _onMoveReceived;
 
-  // The isPhoneAvailable getter does not exist in another_telephony.
-  // We simply assume the device can send SMS; permissions will be requested.
   Future<bool> isSupported() async {
     await AppLogger().log('SMS service initialized');
     return true;
@@ -24,12 +22,11 @@ class SmsService {
       return;
     }
 
-    // The callback MUST be marked 'async' to use 'await' inside.
     _telephony.listenIncomingSms(
       onNewMessage: (SmsMessage message) async {
         final body = message.body ?? '';
         await AppLogger().log('SMS received: $body');
-        if (body.length >= 4 && body.contains(RegExp(r'^[a-h][1-8][a-h][1-8]'))) {
+        if (body.length >= 4 && RegExp(r'^[a-h][1-8][a-h][1-8]').hasMatch(body.substring(0, 4))) {
           final move = body.substring(0, 4);
           _onMoveReceived?.call(move);
           await AppLogger().log('Parsed move: $move');
@@ -51,6 +48,15 @@ class SmsService {
       onResult?.call(false);
       return;
     }
+
+    // Request permissions again before sending (in case they were not granted yet)
+    final granted = await _telephony.requestSmsPermissions;
+    if (granted != true) {
+      await AppLogger().log('SMS send failed: permissions not granted');
+      onResult?.call(false);
+      return;
+    }
+
     try {
       await _telephony.sendSms(
         to: phoneNumber,
