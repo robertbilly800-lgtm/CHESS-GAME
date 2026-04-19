@@ -1,7 +1,7 @@
 name: chess_sms_app
 description: Chess Grandmaster - Complete chess app with AI, Bluetooth, SMS and Online play.
 publish_to: 'none'
-version: 1.0.5+6
+version: 1.1.0+7
 
 environment:
   sdk: ">=3.6.0 <4.0.0"

@@ -1,4 +1,4 @@
-package com.grandmaster.chess.pro
+package com.chessmate.pro.game
 
 import io.flutter.embedding.android.FlutterActivity
 

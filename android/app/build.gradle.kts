@@ -14,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.grandmaster.chess.pro"
+    namespace = "com.chessmate.pro.game"
     compileSdk = 36
     ndkVersion = "28.2.13676358"
 
@@ -28,7 +28,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.grandmaster.chess.pro"
+        applicationId = "com.chessmate.pro.game"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
@@ -43,8 +43,10 @@ android {
         create("release") {
             keyAlias     = (keystoreProperties["keyAlias"]     as String?) ?: "chess-mate"
             keyPassword  = (keystoreProperties["keyPassword"]  as String?) ?: "chessmate123"
-            storeFile    = keystoreProperties["storeFile"]?.let { file(it as String) }
-                           ?: file("release-keystore.jks")
+            storeFile    = keystoreProperties["storeFile"]?.let { 
+                               val path = it as String
+                               if (file(path).exists()) file(path) else rootProject.file("app/$path")
+                           } ?: rootProject.file("app/release-keystore.jks")
             storePassword = (keystoreProperties["storePassword"] as String?) ?: "chessmate123"
         }
     }
