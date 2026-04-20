@@ -103,9 +103,9 @@ class SimpleChessBoard extends StatelessWidget {
         boardColors: chessBoardColors ?? ChessBoardColors(),
         cellHighlights: cellHighlights,
         showCoordinatesZone: showCoordinatesZone,
-        arrow: arrow,
         highlightLastMoveSquares: highlightLastMoveSquares ?? true,
         isInteractive: isInteractive,
+        arrow: arrow,
         nonInteractiveOverlayColor: nonInteractiveOverlayColor,
         nonInteractiveTextStyle: nonInteractiveTextStyle,
         nonInteractiveMessage: nonInteractiveMessage,
@@ -114,15 +114,6 @@ class SimpleChessBoard extends StatelessWidget {
       );
     });
   }
-}
-
-// ── Internal ────────────────────────────────────────────────────────────────
-
-class _DndDetails {
-  final (int, int) startCell;
-  (double, double) position;
-  final Piece movedPiece;
-  _DndDetails({required this.startCell, required this.position, required this.movedPiece});
 }
 
 class _Chessboard extends StatefulWidget {
@@ -139,9 +130,9 @@ class _Chessboard extends StatefulWidget {
   final ChessBoardColors boardColors;
   final Map<String, Color> cellHighlights;
   final bool showCoordinatesZone;
-  final BoardArrow? arrow;
   final bool highlightLastMoveSquares;
   final bool isInteractive;
+  final BoardArrow? arrow;
   final Color? nonInteractiveOverlayColor;
   final TextStyle? nonInteractiveTextStyle;
   final String? nonInteractiveMessage;
@@ -253,6 +244,26 @@ class _ChessboardState extends State<_Chessboard> {
 
   void _handlePanCancel() => setState(() { _dnd = null; _possibleMoves = []; });
 
+  // Real implementation of square parsing for consistency
+  Map<String, Piece?> _getSquaresFromFen(String fen) {
+    final logic = chess.Chess.fromFEN(fen);
+    final Map<String, Piece?> squares = {};
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+        final sq = '${String.fromCharCode(97 + c)}${r + 1}';
+        final p = logic.get(sq);
+        if (p != null) {
+          final boardColor = (p.color == chess.Color.WHITE) ? BoardColor.white : BoardColor.black;
+          final pieceType = PieceType.fromString(p.type.name);
+          squares[sq] = Piece(boardColor, pieceType);
+        } else {
+          squares[sq] = null;
+        }
+      }
+    }
+    return squares;
+  }
+
   void _calcMoves(String square) {
     final logic = chess.Chess.fromFEN(widget.fen);
     _possibleMoves = logic.moves({'square': square, 'verbose': true})
@@ -273,11 +284,6 @@ class _ChessboardState extends State<_Chessboard> {
     widget.onMove(move: move);
   }
 
-  // ── THE KEY FIX ──────────────────────────────────────────────────────────
-  // ValueKey uses piece name + stable index (NOT square name).
-  // When a rook moves e1→d1 the key stays 'piece_wr_0' so Flutter
-  // animates the SAME widget from old left/top to new left/top.
-  // Before: key was 'piece_wr_e1' → 'piece_wr_d1' = destroy + create = no animation.
   List<Widget> _buildPieces() {
     final cs = widget.size / 8;
     final widgets = <Widget>[];
@@ -297,8 +303,6 @@ class _ChessboardState extends State<_Chessboard> {
       final row = widget.blackSideAtBottom ? rank : 7 - rank;
 
       widgets.add(AnimatedPositioned(
-        // Key is based on the square 'sq' to keep it stable during drag
-        // If we are dragging this piece, we give it a unique suffix to avoid collisions
         key: ValueKey('piece_sq_${piece.name}_$sq'),
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeOutCubic,
@@ -397,9 +401,17 @@ class _ChessboardState extends State<_Chessboard> {
     }
     return board;
   }
+  
+  Map<String, Piece?> _getSquares(String fen) => _getSquaresFromFen(fen);
 }
 
-// ── Painter ──────────────────────────────────────────────────────────────────
+class _DndDetails {
+  (int, int) startCell;
+  (double, double) position;
+  Piece movedPiece;
+  _DndDetails({required this.startCell, required this.position, required this.movedPiece});
+}
+
 class _BoardPainter extends CustomPainter {
   final ChessBoardColors colors;
   final bool blackSideAtBottom;
@@ -440,7 +452,6 @@ class _BoardPainter extends CustomPainter {
         }
       }
     }
-    if (arrow != null) _drawArrow(canvas, arrow!, cs);
   }
 
   void _drawText(Canvas canvas, String text, Offset offset, double fontSize) {
@@ -451,53 +462,6 @@ class _BoardPainter extends CustomPainter {
     tp.paint(canvas, offset);
   }
 
-  void _drawArrow(Canvas canvas, BoardArrow a, double cs) {
-    int fc(String s) => s.codeUnitAt(0) - 97;
-    int rc(String s) => int.parse(s[1]) - 1;
-    final fc1 = blackSideAtBottom ? 7 - fc(a.from) : fc(a.from);
-    final rc1 = blackSideAtBottom ? rc(a.from) : 7 - rc(a.from);
-    final fc2 = blackSideAtBottom ? 7 - fc(a.to) : fc(a.to);
-    final rc2 = blackSideAtBottom ? rc(a.to) : 7 - rc(a.to);
-    canvas.drawLine(
-      Offset((fc1 + 0.5) * cs, (rc1 + 0.5) * cs),
-      Offset((fc2 + 0.5) * cs, (rc2 + 0.5) * cs),
-      Paint()..color = colors.lastMoveArrowColor.withAlpha(180)..strokeWidth = cs * 0.14..strokeCap = StrokeCap.round,
-    );
-  }
-
   @override
   bool shouldRepaint(_BoardPainter old) => true;
 }
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-Map<String, Piece?> _getSquares(String fen) {
-  final result = <String, Piece?>{};
-  final board = chess.Chess.fromFEN(fen);
-  for (int rank = 0; rank < 8; rank++) {
-    for (int file = 0; file < 8; file++) {
-      final sq = '${String.fromCharCode(97 + file)}${rank + 1}';
-      final p = board.get(sq);
-      if (p != null) {
-        final bc = p.color == chess.Color.WHITE ? BoardColor.white : BoardColor.black;
-        final pt = _chessTypeToPieceType(p.type);
-        result[sq] = Piece(bc, pt);
-      } else {
-        result[sq] = null;
-      }
-    }
-  }
-  return result;
-}
-
-PieceType _chessTypeToPieceType(chess.PieceType t) {
-  switch (t) {
-    case chess.PieceType.PAWN:   return PieceType.pawn;
-    case chess.PieceType.KNIGHT: return PieceType.knight;
-    case chess.PieceType.BISHOP: return PieceType.bishop;
-    case chess.PieceType.ROOK:   return PieceType.rook;
-    case chess.PieceType.QUEEN:  return PieceType.queen;
-    case chess.PieceType.KING:   return PieceType.king;
-    default:                     return PieceType.pawn;
-  }
-}
-

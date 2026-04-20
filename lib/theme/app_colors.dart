@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color background = Color(0xFF0F1014);
-  static const Color primaryGreen = Color(0xFF00B873);
-  static const Color cardDark = Color(0xFF1A1C20);
+  static const Color background = Color(0xFF0F1014);    // Deep Obsidian
+  static const Color primaryGreen = Color(0xFF00B873);  // Emerald Green
+  static const Color cardDark = Color(0xFF1A1C20);     // Dark Gray Cards
   static const Color textLight = Colors.white;
   static const Color textMuted = Color(0xFF8A8D93);
   static const Color borderDark = Color(0xFF2A2D34);

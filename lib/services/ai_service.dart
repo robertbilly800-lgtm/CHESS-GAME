@@ -43,7 +43,6 @@ class AiService {
       _stockfish!.stdin = 'uci';
       _stockfish!.stdin = 'isready';
       
-      // Give it a bit more time for the handshake in the init phase
       await Future.delayed(const Duration(milliseconds: 1000));
       
       if (!_isReady) {

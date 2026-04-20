@@ -7,7 +7,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 // GATT UUIDs for chess protocol
 const _svcUuid  = '12345678-1234-1234-1234-123456789abc';
 const _moveUuid = '12345678-1234-1234-1234-123456789abd';
-const _pinUuid  = '12345678-1234-1234-1234-123456789abe'; // PIN characteristic
+const _pinUuid  = '12345678-1234-1234-1234-123456789abe'; 
 
 class ChessBluetoothService {
   BluetoothDevice? _device;
@@ -25,7 +25,6 @@ class ChessBluetoothService {
   Stream<String> get pinReceived  => _pinCtrl.stream;
   bool get isConnected => _device != null;
 
-  // The 4-digit PIN generated for this session
   String? _localPin;
   String? get localPin => _localPin;
 
@@ -35,20 +34,18 @@ class ChessBluetoothService {
     });
   }
 
-  // ── Generate a 4-digit PIN ────────────────────────────────────────────────
   String generatePin() {
     _localPin = (1000 + Random().nextInt(9000)).toString();
     return _localPin!;
   }
 
-  // ── Scanning ──────────────────────────────────────────────────────────────
   Future<bool> isSupported() async => FlutterBluePlus.isSupported;
 
   Future<void> startScan() async {
     try {
       if (!await isSupported()) { _emit('Bluetooth not supported.'); return; }
       final state = await FlutterBluePlus.adapterState.first;
-      if (state != BluetoothAdapterState.on) { _emit('Bluetooth is OFF — please enable it.'); return; }
+      if (state != BluetoothAdapterState.on) { _emit('Bluetooth is OFF.'); return; }
       await FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));
       _emit('Scanning for nearby players…');
     } catch (e) {
@@ -61,7 +58,6 @@ class ChessBluetoothService {
     try { await FlutterBluePlus.stopScan(); } catch (_) {}
   }
 
-  // ── Connect + discover chess service ─────────────────────────────────────
   Future<bool> connectToDevice(BluetoothDevice device) async {
     int attempts = 0;
     const maxAttempts = 3;
@@ -113,13 +109,12 @@ class ChessBluetoothService {
           _emit('Connection failed after $maxAttempts attempts: $e');
           return false;
         }
-        await Future.delayed(const Duration(seconds: 2)); // Wait before retry
+        await Future.delayed(const Duration(seconds: 2));
       }
     }
     return false;
   }
 
-  // ── Send PIN to other device ──────────────────────────────────────────────
   Future<void> sendPin(String pin) async {
     if (_pinChar == null) return;
     try {
@@ -130,7 +125,6 @@ class ChessBluetoothService {
     }
   }
 
-  // ── Send chess move ───────────────────────────────────────────────────────
   Future<void> sendMove(String uci) async {
     if (_moveChar == null) { _emit('Not connected.'); return; }
     try {

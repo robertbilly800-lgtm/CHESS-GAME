@@ -5,9 +5,7 @@ import 'package:flutter/foundation.dart';
 @pragma('vm:entry-point')
 void backgrounMessageHandler(SmsMessage message) async {
   debugPrint('[SMS] Background message received: ${message.body}');
-  // Note: For background moves to be applied, we'd need a more complex solution 
-  // like a local notification or sharing state via SharedPreferences/EventBus.
-  // For now, we ensure the infrastructure is ready.
+  // Infrastructure for future notification integration
 }
 
 class SmsService {
@@ -29,7 +27,7 @@ class SmsService {
         final body = message.body ?? '';
         debugPrint('[SMS] Received: $body');
         
-        // Use a more robust regex that searches for a UCI move anywhere in the body
+        // Robust UCI move detection
         final uciRegex = RegExp(r'([a-h][1-8][a-h][1-8])');
         final match = uciRegex.firstMatch(body.toLowerCase());
         
@@ -66,12 +64,13 @@ class SmsService {
       debugPrint('[SMS] Sending move $uciMove to $phoneNumber');
       await _telephony.sendSms(
         to: phoneNumber, 
-        message: uciMove, // We send only the UCI move for clarity
+        message: uciMove,
         statusListener: (status) {
+          final ok = status == SendStatus.SENT;
           debugPrint('[SMS] Send status: $status');
+          onResult?.call(ok);
         }
       );
-      onResult?.call(true);
     } catch (e) {
       debugPrint('[SMS] Error: $e');
       onResult?.call(false);

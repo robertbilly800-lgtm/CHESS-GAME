@@ -1,0 +1,52 @@
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: ((ctx, constraints) {
+        final size = constraints.maxWidth < constraints.maxHeight
+            ? constraints.maxWidth
+            : constraints.maxHeight;
+
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            _Chessboard(
+              fen: fen,
+              size: size,
+              blackSideAtBottom: blackSideAtBottom,
+              boardColors: chessBoardColors,
+              processMove: _processMove,
+              whitePlayerType: whitePlayerType,
+              blackPlayerType: blackPlayerType,
+              onPromote: onPromote,
+              onPromotionCommited: onPromotionCommited,
+              onTap: onTap,
+              highlightLastMoveSquares: highlightLastMoveSquares,
+              showPossibleMoves: showPossibleMoves ?? false,
+              isInteractive: isInteractive,
+              nonInteractiveText: nonInteractiveText,
+              nonInteractiveTextStyle: nonInteractiveTextStyle,
+              nonInteractiveOverlayColor: nonInteractiveOverlayColor,
+              normalMoveIndicatorBuilder: normalMoveIndicatorBuilder,
+              captureMoveIndicatorBuilder: captureMoveIndicatorBuilder,
+              arrow: (lastMoveToHighlight != null)
+                  ? BoardArrow(
+                      from: lastMoveToHighlight!.from,
+                      to: lastMoveToHighlight!.to,
+                    )
+                  : null,
+              cellHighlights: cellHighlights,
+            ),
+            if (engineThinking)
+              SizedBox(
+                width: size,
+                height: size,
+                child: CircularProgressIndicator(
+                  backgroundColor: chessBoardColors.circularProgressBarColor,
+                  strokeWidth: 8,
+                ),
+              ),
+          ],
+        );
+      }),
+    );
+  }
