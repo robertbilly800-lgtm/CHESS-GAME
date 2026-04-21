@@ -16,418 +16,272 @@ import '../services/user_service.dart';
 bool _isWhiteTurn(ch.Chess game) => game.turn == ch.Color.WHITE;
 
 class ChessScreen extends StatefulWidget {
-  final String mode;
-  final String? opponentPhone;
-  final String? username;
-  final int? userElo;
+final String mode;
+final String? opponentPhone;
+final String? username;
+final int? userElo;
 
-  const ChessScreen({
-    super.key,
-    this.mode = 'local',
-    this.opponentPhone,
-    this.username,
-    this.userElo,
-  });
+const ChessScreen({
+super.key,
+this.mode = 'local',
+this.opponentPhone,
+this.username,
+this.userElo,
+});
 
-  @override
-  State<ChessScreen> createState() => _ChessScreenState();
+@override
+State<ChessScreen> createState() => _ChessScreenState();
 }
 
-class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin {
-  ch.Chess _game = ch.Chess();
-  List<String> _moveHistory = [];
-  String _activeTheme = 'Classic Green';
+class _ChessScreenState extends State<ChessScreen> {
+ch.Chess _game = ch.Chess();
+List<String> _moveHistory = [];
 
-  AiService? _ai;
-  SmsService? _sms;
-  ChessBluetoothService? _bt;
-  SoundService? _sound;
-  final UserService _user = UserService();
+AiService? _ai;
+SmsService? _sms;
+ChessBluetoothService? _bt;
+SoundService? _sound;
+final UserService _user = UserService();
 
-  bool _isHardwareValid = true;
-  String _errorMsg = '';
-  bool _aiThinking = false;
-  int _aiLevel = 10;
-  String _statusMsg = "White's turn";
-  String _btStatus = '';
-  bool _resultRecorded = false;
+bool _isHardwareValid = true;
+String _errorMsg = '';
+bool _aiThinking = false;
+int _aiLevel = 10;
+String _statusMsg = "White's turn";
+String _btStatus = '';
 
-  // Game state variables
+List<String> _whiteCaptured = [];
+List<String> _blackCaptured = [];
 
-  // Captures tracking
-  List<String> _whiteCaptured = [];
-  List<String> _blackCaptured = [];
+@override
+void initState() {
+super.initState();
+_initServices();
+}
 
-  @override
-  void initState() {
-    super.initState();
-    _activeTheme = _user.boardTheme;
-    _initServices();
+@override
+void dispose() {
+_ai?.dispose();
+super.dispose();
+}
+
+Future<void> _initServices() async {
+_sound = SoundService();
+
+```
+try {
+  if (widget.mode == 'ai') {
+    _ai = AiService();
+    await _ai!.init();
+    if (_ai!.isHardwareSupported) {
+      _ai!.setDifficulty(_aiLevel);
+    }
   }
 
-  @override
-  void dispose() {
-    _ai?.dispose();
-    super.dispose();
-  }
-
-  // ── Services ───────────────────────────────────────────────────────────────
-
-  Future<void> _initServices() async {
-    _sound = SoundService();
-
-    try {
-      switch (widget.mode) {
-        case 'ai':
-          _ai = AiService();
-          await _ai!.init();
-          if (_ai!.isHardwareSupported) {
-            _ai!.setDifficulty(_aiLevel);
-          } else {
-            setState(() { _isHardwareValid = false; _errorMsg = "AI Error: Hardware not supported."; });
-          }
-          break;
-
-        case 'local':
-          break;
-
-        case 'sms':
-          _sms = SmsService();
-          if (await _sms!.isSupported()) {
-            final granted = await _requestSmsPermissions();
-            if (granted) {
-              _sms!.listenForMoves(onMoveReceived: (move) => _onBoardMove(move, isRemote: true));
-            } else {
-               setState(() { _isHardwareValid = false; _errorMsg = "SMS Permission Denied."; });
-            }
-          }
-          break;
-
-        case 'bluetooth':
-          _bt = ChessBluetoothService();
-          if (await _bt!.isSupported()) {
-            await _bt!.startScan(); 
-            _bt!.status.listen((msg) { if (mounted) setState(() => _btStatus = msg); });
-            _bt!.moveReceived.listen((move) => _onBoardMove(move, isRemote: true));
-          }
-          break;
+  if (widget.mode == 'sms') {
+    _sms = SmsService();
+    if (await _sms!.isSupported()) {
+      final granted = await _requestSmsPermissions();
+      if (granted) {
+        _sms!.listenForMoves(
+          onMoveReceived: (move) => _onBoardMove(move, isRemote: true),
+        );
       }
-    } catch (e) {
-      setState(() { _isHardwareValid = false; _errorMsg = 'Service initialization error.'; });
     }
   }
 
-  Future<bool> _requestSmsPermissions() async {
-    final s = await Permission.sms.request();
-    final p = await Permission.phone.request();
-    return s.isGranted && p.isGranted;
-  }
-
-  // ── Move Logic ─────────────────────────────────────────────────────────────
-
-  void _onBoardMove(String uci, {bool isRemote = false}) {
-    if (!mounted || uci.length < 4 || _game.game_over) return;
-    final from = uci.substring(0, 2);
-    final to = uci.substring(2, 4);
-
-    try {
-      final move = _game.move({'from': from, 'to': to, 'promotion': 'q'});
-      if (move != null) {
-        _trackCapture(move);
-        if (_user.vibrationEnabled) Vibration.vibrate(duration: 30);
-        setState(() => _moveHistory.add(uci));
-        _handleAfterMove(uci, isRemote: isRemote);
-      }
-    } catch (e) {
-      debugPrint('[Chess] Invalid move: $e');
+  if (widget.mode == 'bluetooth') {
+    _bt = ChessBluetoothService();
+    if (await _bt!.isSupported()) {
+      await _bt!.start();
+      _bt!.status.listen((msg) {
+        if (mounted) setState(() => _btStatus = msg);
+      });
+      _bt!.moveReceived.listen((move) {
+        _onBoardMove(move, isRemote: true);
+      });
     }
   }
+} catch (e) {
+  setState(() {
+    _isHardwareValid = false;
+    _errorMsg = 'Service error';
+  });
+}
+```
 
-  void _trackCapture(dynamic move) {
-    final captured = move['captured'];
-    if (captured != null) {
-      final color = move['color'];
-      if (color == 'w') { _blackCaptured.add(captured as String); } else { _whiteCaptured.add(captured as String); }
-      _sound?.playCapture();
-    } else {
-      _sound?.playMove();
+}
+
+Future<bool> _requestSmsPermissions() async {
+final s = await Permission.sms.request();
+final p = await Permission.phone.request();
+return s.isGranted && p.isGranted;
+}
+
+void _onBoardMove(String uci, {bool isRemote = false}) {
+if (!mounted || uci.length < 4 || _game.game_over) return;
+
+```
+final from = uci.substring(0, 2);
+final to = uci.substring(2, 4);
+
+try {
+  final move = _game.move({
+    'from': from,
+    'to': to,
+    'promotion': 'q'
+  });
+
+  if (move != null) {
+    _trackCapture(move);
+
+    if (_user.vibrationEnabled) {
+      Vibration.vibrate(duration: 30);
     }
-    if (_game.in_check) _sound?.playCheck();
-  }
 
-  void _handleAfterMove(String lastUci, {bool isRemote = false}) {
-    _updateStatus();
-
-    if (_game.game_over) return;
-
-    if (widget.mode == 'ai' && !_isWhiteTurn(_game)) {
-      _triggerAiMove();
-    }
-
-    if (!isRemote) {
-      if (widget.mode == 'sms' && widget.opponentPhone != null) { _sms?.sendMove(phoneNumber: widget.opponentPhone!, uciMove: lastUci); }
-      if (widget.mode == 'bluetooth') { _bt?.sendMove(lastUci); }
-    }
-  }
-
-  Future<void> _triggerAiMove() async {
-    if (_ai == null || _aiThinking || _game.game_over) return;
-    
-    _aiThinking = true;
-    final fenSnapshot = _game.fen;
-    
-    final best = await _ai!.getBestMove(fenSnapshot);
-    _aiThinking = false;
-    
-    if (best != null && best.length >= 4 && mounted) {
-      _onBoardMove(best, isRemote: true);
-    }
-  }
-
-  void _updateStatus() {
-    if (!mounted) return;
     setState(() {
-      if (_game.in_checkmate) {
-        final winner = _isWhiteTurn(_game) ? 'Black' : 'White';
-        _handleGameOver(winner == 'White' ? 'win' : 'loss', '♛ Checkmate! $winner wins.');
-      } else if (_game.in_draw) {
-        _handleGameOver('draw', '½ Draw! Game Over.');
-      } else {
-        _statusMsg = _isWhiteTurn(_game) ? "⬜ White's turn" : "⬛ Black's turn";
-      }
+      _moveHistory.add(uci);
     });
+
+    _handleAfterMove(uci, isRemote: isRemote);
   }
+} catch (e) {
+  debugPrint("Invalid move: $e");
+}
+```
 
-  void _handleGameOver(String result, String message) {
-    _statusMsg = message;
-    if (!_resultRecorded) {
-      _user.recordGameResult(result);
-      _resultRecorded = true;
-      _sound?.playGameOver();
-    }
-    setState(() {});
+}
+
+void _trackCapture(dynamic move) {
+final captured = move['captured'];
+
+```
+if (captured != null) {
+  final color = move['color'];
+  if (color == 'w') {
+    _blackCaptured.add(captured);
+  } else {
+    _whiteCaptured.add(captured);
   }
+}
+```
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+}
 
-  @override
-  Widget build(BuildContext context) {
-    if (!_isHardwareValid) { return _buildErrorScreen(); }
+void _handleAfterMove(String lastMove, {bool isRemote = false}) {
+_updateStatus();
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 12),
-              _buildPlayerCard(
-                name: widget.mode == 'ai' ? 'Stockfish Engine' : 'Opponent',
-                elo: '1450',
-                captured: _blackCaptured,
-                isActive: !_isWhiteTurn(_game),
-                isClient: false,
-              ),
-              const SizedBox(height: 20),
-              _buildBoard(),
-              const SizedBox(height: 20),
-              _buildPlayerCard(
-                name: _user.displayName,
-                elo: _user.elo.toString(),
-                captured: _whiteCaptured,
-                isActive: _isWhiteTurn(_game),
-                isClient: true,
-              ),
-              const SizedBox(height: 24),
-              _buildMoveHistory(),
-              const SizedBox(height: 16),
-              _buildBoardThemeSelector(),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
+```
+if (_game.game_over) return;
+
+if (widget.mode == 'ai') {
+  Future.delayed(const Duration(milliseconds: 300), () {
+    _triggerAiMove();
+  });
+}
+
+if (!isRemote) {
+  if (widget.mode == 'sms' && widget.opponentPhone != null) {
+    _sms?.sendMove(
+      phoneNumber: widget.opponentPhone!,
+      uciMove: lastMove,
     );
   }
 
-  Widget _buildHeader() {
-    return Row(
+  if (widget.mode == 'bluetooth') {
+    _bt?.sendMove(lastMove);
+  }
+}
+```
+
+}
+
+Future<void> _triggerAiMove() async {
+if (_ai == null || _aiThinking || _game.game_over) return;
+
+```
+_aiThinking = true;
+
+final move = await _ai!.getBestMove(_game.fen);
+
+_aiThinking = false;
+
+if (move != null && move.length >= 4 && mounted) {
+  _onBoardMove(move, isRemote: true);
+}
+```
+
+}
+
+void _updateStatus() {
+if (!mounted) return;
+
+```
+setState(() {
+  if (_game.in_checkmate) {
+    final winner = _isWhiteTurn(_game) ? 'Black' : 'White';
+    _statusMsg = "$winner wins";
+  } else if (_game.in_draw) {
+    _statusMsg = "Draw";
+  } else {
+    _statusMsg =
+        _isWhiteTurn(_game) ? "White's turn" : "Black's turn";
+  }
+});
+```
+
+}
+
+@override
+Widget build(BuildContext context) {
+if (!_isHardwareValid) {
+return Scaffold(
+body: Center(child: Text(_errorMsg)),
+);
+}
+
+```
+return Scaffold(
+  backgroundColor: AppColors.background,
+  body: SafeArea(
+    child: Column(
       children: [
-        IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18), onPressed: () => Navigator.pop(context)),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(12)),
-            child: Row(children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: _game.game_over ? Colors.red : AppColors.primaryGreen)),
-              const SizedBox(width: 10),
-              Text(_statusMsg, style: GoogleFonts.outfit(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
-            ]),
+        const SizedBox(height: 20),
+
+        Text(
+          _statusMsg,
+          style: GoogleFonts.outfit(
+            color: Colors.white,
+            fontSize: 18,
           ),
         ),
-        const SizedBox(width: 10),
-        _buildActionBtn(Icons.undo, () {
-          setState(() {
-            _game.undo_move();
-            if (_moveHistory.isNotEmpty) _moveHistory.removeLast();
-            _updateStatus();
-          });
-        }),
-      ],
-    );
-  }
 
-  Widget _buildActionBtn(IconData icon, VoidCallback onTap) => GestureDetector(
-    onTap: onTap,
-    child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: Colors.white70, size: 20)),
-  );
+        const SizedBox(height: 20),
 
-  Widget _buildPlayerCard({required String name, required String elo, required List<String> captured, required bool isActive, required bool isClient}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isActive ? AppColors.primaryGreen.withValues(alpha: 0.5) : AppColors.borderDark, width: isActive ? 1.5 : 1),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(radius: 22, backgroundColor: AppColors.background, child: Icon(isClient ? Icons.person : Icons.psychology, color: AppColors.primaryGreen, size: 24)),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: GoogleFonts.syne(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis),
-                Text('ELO $elo', style: GoogleFonts.outfit(color: AppColors.textMuted, fontSize: 12)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 5,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              constraints: const BoxConstraints(minHeight: 40),
-              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(10)),
-              alignment: Alignment.centerRight,
-              child: captured.isEmpty
-                  ? Text('0 pieces', style: GoogleFonts.outfit(color: Colors.white54, fontSize: 11))
-                  : Wrap(
-                      alignment: WrapAlignment.end,
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: captured.map((p) => _getCapturedPieceIcon(p, isClient)).toList(),
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _getCapturedPieceIcon(String p, bool isWhitePiece) {
-    String symbol = '';
-    switch (p.toLowerCase()) {
-      case 'p': symbol = isWhitePiece ? '♙' : '♟'; break;
-      case 'n': symbol = isWhitePiece ? '♘' : '♞'; break;
-      case 'b': symbol = isWhitePiece ? '♗' : '♝'; break;
-      case 'r': symbol = isWhitePiece ? '♖' : '♜'; break;
-      case 'q': symbol = isWhitePiece ? '♕' : '♛'; break;
-    }
-    return Text(symbol, style: TextStyle(fontSize: 16, color: isWhitePiece ? Colors.white : Colors.white70));
-  }
-
-  Widget _buildBoard() {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: Container(
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, spreadRadius: 2)]),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+        Expanded(
           child: SimpleChessBoard(
             fen: _game.fen,
-            onMove: ({required ShortMove move}) => _onBoardMove(move.from + move.to, isRemote: false),
+
+            onMove: ({required ShortMove move}) {
+              final uci = move.from + move.to;
+              _onBoardMove(uci);
+            },
+
             whitePlayerType: PlayerType.human,
-            blackPlayerType: widget.mode == 'ai' ? PlayerType.computer : PlayerType.human,
+            blackPlayerType: PlayerType.human,
+
             showPossibleMoves: true,
-            chessBoardColors: _getBoardColors(),
-            onPromote: () async => PieceType.queen,
-            onPromotionCommited: ({required ShortMove moveDone, required PieceType pieceType}) {},
-            onTap: ({required String cellCoordinate}) {},
+
+            onTap: ({required String cellCoordinate}) {
+              debugPrint("Tapped: $cellCoordinate");
+            },
           ),
         ),
-      ),
-    );
-  }
-
-  ChessBoardColors _getBoardColors() {
-    final colors = ChessBoardColors();
-    switch (_activeTheme) {
-      case 'Wood':
-        colors.lightSquaresColor = const Color(0xFFEEDAB8);
-        colors.darkSquaresColor = const Color(0xFFB58763);
-        break;
-      case 'Midnight':
-        colors.lightSquaresColor = const Color(0xFF4A4A5A);
-        colors.darkSquaresColor = const Color(0xFF1E1E2E);
-        break;
-      default:
-        colors.lightSquaresColor = const Color(0xFFC8D5B1);
-        colors.darkSquaresColor = const Color(0xFF7A9859);
-    }
-    return colors;
-  }
-
-  Widget _buildMoveHistory() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.borderDark)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Move History', style: GoogleFonts.syne(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-            Text('${_moveHistory.length} moves', style: GoogleFonts.outfit(color: AppColors.primaryGreen, fontSize: 12, fontWeight: FontWeight.bold)),
-          ]),
-          const SizedBox(height: 12),
-          Text(_moveHistory.isEmpty ? 'Waiting for first move...' : _moveHistory.join('  '), style: GoogleFonts.outfit(color: AppColors.textMuted, fontSize: 12, height: 1.5)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBoardThemeSelector() {
-    final themes = ['Classic Green', 'Wood', 'Midnight'];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('BOARD THEME', style: GoogleFonts.outfit(color: AppColors.textMuted, fontSize: 11, letterSpacing: 1.2)),
-        const SizedBox(height: 12),
-        Row(children: themes.map((t) => Expanded(
-          child: GestureDetector(
-            onTap: () { setState(() => _activeTheme = t); _user.setBoardTheme(t); },
-            child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: _activeTheme == t ? AppColors.primaryGreen : AppColors.cardDark,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _activeTheme == t ? AppColors.primaryGreen : AppColors.borderDark),
-              ),
-              child: Center(child: Text(t.split(' ').first, style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
-            ),
-          ),
-        )).toList()),
       ],
-    );
-  }
+    ),
+  ),
+);
+```
 
-  Widget _buildErrorScreen() {
-    return Scaffold(backgroundColor: AppColors.background, body: Center(child: Text(_errorMsg, style: const TextStyle(color: Colors.white))));
-  }
+}
 }
