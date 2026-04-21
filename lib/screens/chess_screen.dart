@@ -308,22 +308,34 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
         children: [
           CircleAvatar(radius: 22, backgroundColor: AppColors.background, child: Icon(isClient ? Icons.person : Icons.psychology, color: AppColors.primaryGreen, size: 24)),
           const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(name, style: GoogleFonts.syne(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-            Row(children: [
-              Text('ELO $elo', style: GoogleFonts.outfit(color: AppColors.textMuted, fontSize: 12)),
-              if (captured.isNotEmpty) ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: captured.map((p) => _getCapturedPieceIcon(p, !isClient)).toList(),
-                  ),
-                ),
+          Expanded(
+            flex: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: GoogleFonts.syne(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis),
+                Text('ELO $elo', style: GoogleFonts.outfit(color: AppColors.textMuted, fontSize: 12)),
               ],
-            ]),
-          ])),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 5,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              constraints: const BoxConstraints(minHeight: 40),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(10)),
+              alignment: Alignment.centerRight,
+              child: captured.isEmpty
+                  ? Text('0 pieces', style: GoogleFonts.outfit(color: Colors.white54, fontSize: 11))
+                  : Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: captured.map((p) => _getCapturedPieceIcon(p, !isClient)).toList(),
+                    ),
+            ),
+          ),
         ],
       ),
     );
