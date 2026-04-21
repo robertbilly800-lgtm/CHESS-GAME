@@ -77,7 +77,8 @@ class AiService {
 
     sub = _outputController.stream.listen((line) {
       if (line.startsWith('bestmove')) {
-        final parts = line.trim().split(' ');
+        final RegExp spaceRegex = RegExp(r'\s+');
+        final parts = line.trim().split(spaceRegex);
         final move = parts.length >= 2 ? parts[1] : null;
         if (!completer.isCompleted) {
           completer.complete(move == '(none)' ? null : move);
@@ -87,7 +88,6 @@ class AiService {
       }
     });
 
-    _stockfish!.stdin = 'stop';
     _stockfish!.stdin = 'position fen $fen';
     _stockfish!.stdin = 'go movetime $movetime';
 

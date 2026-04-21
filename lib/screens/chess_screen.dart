@@ -52,10 +52,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   String _btStatus = '';
   bool _resultRecorded = false;
 
-  // Real countdown timers
-  int _whiteTimeSeconds = 600; // 10 minutes
-  int _blackTimeSeconds = 600;
-  Timer? _clockTimer;
+  // Game state variables
 
   // Captures tracking
   List<String> _whiteCaptured = [];
@@ -70,42 +67,8 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
 
   @override
   void dispose() {
-    _clockTimer?.cancel();
     _ai?.dispose();
     super.dispose();
-  }
-
-  // ── Timer ──────────────────────────────────────────────────────────────────
-
-  void _startClock() {
-    _clockTimer?.cancel();
-    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || _game.game_over) {
-        _clockTimer?.cancel();
-        return;
-      }
-      setState(() {
-        if (_isWhiteTurn(_game)) {
-          if (_whiteTimeSeconds > 0) {
-            _whiteTimeSeconds--;
-          } else {
-            _handleGameOver('loss', '⏰ Black wins on time!');
-          }
-        } else {
-          if (_blackTimeSeconds > 0) {
-            _blackTimeSeconds--;
-          } else {
-            _handleGameOver('win', '⏰ White wins on time!');
-          }
-        }
-      });
-    });
-  }
-
-  String _formatTime(int seconds) {
-    final m = (seconds ~/ 60).toString().padLeft(2, '0');
-    final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
   }
 
   // ── Services ───────────────────────────────────────────────────────────────
@@ -120,14 +83,12 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
           await _ai!.init();
           if (_ai!.isHardwareSupported) {
             _ai!.setDifficulty(_aiLevel);
-            _startClock();
           } else {
             setState(() { _isHardwareValid = false; _errorMsg = "AI Error: Hardware not supported."; });
           }
           break;
 
         case 'local':
-          _startClock();
           break;
 
         case 'sms':
@@ -136,7 +97,6 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
             final granted = await _requestSmsPermissions();
             if (granted) {
               _sms!.listenForMoves(onMoveReceived: _applyOpponentMove);
-              _startClock();
             }
           }
           break;
@@ -146,7 +106,6 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
           if (await _bt!.isSupported()) {
             _bt!.status.listen((msg) { if (mounted) setState(() => _btStatus = msg); });
             _bt!.moveReceived.listen(_applyOpponentMove);
-            _startClock();
           }
           break;
       }
@@ -252,7 +211,6 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
 
   void _handleGameOver(String result, String message) {
     _statusMsg = message;
-    _clockTimer?.cancel();
     if (!_resultRecorded) {
       _user.recordGameResult(result);
       _resultRecorded = true;
@@ -280,7 +238,6 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
               _buildPlayerCard(
                 name: widget.mode == 'ai' ? 'Stockfish Engine' : 'Opponent',
                 elo: '1450',
-                timeSeconds: _isWhiteTurn(_game) ? _blackTimeSeconds : _whiteTimeSeconds,
                 captured: _blackCaptured,
                 isActive: !_isWhiteTurn(_game),
                 isClient: false,
@@ -291,7 +248,6 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
               _buildPlayerCard(
                 name: _user.displayName,
                 elo: _user.elo.toString(),
-                timeSeconds: _isWhiteTurn(_game) ? _whiteTimeSeconds : _blackTimeSeconds,
                 captured: _whiteCaptured,
                 isActive: _isWhiteTurn(_game),
                 isClient: true,
@@ -340,7 +296,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: AppColors.cardDark, borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: Colors.white70, size: 20)),
   );
 
-  Widget _buildPlayerCard({required String name, required String elo, required int timeSeconds, required List<String> captured, required bool isActive, required bool isClient}) {
+  Widget _buildPlayerCard({required String name, required String elo, required List<String> captured, required bool isActive, required bool isClient}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -354,16 +310,35 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(name, style: GoogleFonts.syne(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-            Text('ELO $elo', style: GoogleFonts.outfit(color: AppColors.textMuted, fontSize: 12)),
+            Row(children: [
+              Text('ELO $elo', style: GoogleFonts.outfit(color: AppColors.textMuted, fontSize: 12)),
+              if (captured.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: captured.map((p) => _getCapturedPieceIcon(p, !isClient)).toList(),
+                  ),
+                ),
+              ],
+            ]),
           ])),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(10)),
-            child: Text(_formatTime(timeSeconds), style: GoogleFonts.outfit(color: isActive ? AppColors.primaryGreen : Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-          ),
         ],
       ),
     );
+  }
+
+  Widget _getCapturedPieceIcon(String p, bool isWhitePiece) {
+    String symbol = '';
+    switch (p.toLowerCase()) {
+      case 'p': symbol = isWhitePiece ? '♙' : '♟'; break;
+      case 'n': symbol = isWhitePiece ? '♘' : '♞'; break;
+      case 'b': symbol = isWhitePiece ? '♗' : '♝'; break;
+      case 'r': symbol = isWhitePiece ? '♖' : '♜'; break;
+      case 'q': symbol = isWhitePiece ? '♕' : '♛'; break;
+    }
+    return Text(symbol, style: TextStyle(fontSize: 16, color: isWhitePiece ? Colors.white : Colors.white70));
   }
 
   Widget _buildBoard() {
