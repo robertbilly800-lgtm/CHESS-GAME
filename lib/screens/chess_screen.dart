@@ -93,7 +93,7 @@ try {
   if (widget.mode == 'bluetooth') {
     _bt = ChessBluetoothService();
     if (await _bt!.isSupported()) {
-      await _bt!.start();
+      await _bt!.startScan();
       _bt!.status.listen((msg) {
         if (mounted) setState(() => _btStatus = msg);
       });
@@ -272,9 +272,19 @@ return Scaffold(
 
             showPossibleMoves: true,
 
+            onPromote: () async => PieceType.queen,
+
             onTap: ({required String cellCoordinate}) {
               debugPrint("Tapped: $cellCoordinate");
             },
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text(
+            _moveHistory.join(" "),
+            style: const TextStyle(color: Colors.white70),
           ),
         ),
       ],
