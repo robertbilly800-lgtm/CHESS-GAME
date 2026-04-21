@@ -109,19 +109,25 @@ class _ChessScreenState extends State<ChessScreen> {
   void _onBoardMove(String uci, {bool isRemote = false}) {
     if (uci.length < 4 || _game.game_over) return;
 
-    final move = _game.move({
+    final success = _game.move({
       'from': uci.substring(0, 2),
       'to': uci.substring(2, 4),
       'promotion': 'q',
     });
 
-    if (move != null) {
-      final captured = move['captured'];
-      if (captured != null) {
-        if (move['color'] == 'w') {
-          _blackCaptured.add(captured);
-        } else {
-          _whiteCaptured.add(captured);
+    if (success) {
+      final history = _game.history;
+
+      if (history.isNotEmpty) {
+        final lastMove = history.last;
+
+        final captured = lastMove['captured'];
+        if (captured != null) {
+          if (lastMove['color'] == 'w') {
+            _blackCaptured.add(captured);
+          } else {
+            _whiteCaptured.add(captured);
+          }
         }
       }
 
@@ -205,7 +211,9 @@ class _ChessScreenState extends State<ChessScreen> {
           const SizedBox(height: 10),
 
           Text(
-            "Moves: ${_moveHistory.join(', ')}",
+            _moveHistory.isEmpty
+                ? "No moves yet"
+                : _moveHistory.join(', '),
             style: const TextStyle(color: Colors.white),
           ),
 
