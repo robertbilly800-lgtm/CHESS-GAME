@@ -96,7 +96,9 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
           if (await _sms!.isSupported()) {
             final granted = await _requestSmsPermissions();
             if (granted) {
-              _sms!.listenForMoves(onMoveReceived: _applyOpponentMove);
+              _sms!.listenForMoves(onMoveReceived: (move) => _onBoardMove(move, isRemote: true));
+            } else {
+               setState(() { _isHardwareValid = false; _errorMsg = "SMS Permission Denied."; });
             }
           }
           break;
@@ -104,8 +106,9 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
         case 'bluetooth':
           _bt = ChessBluetoothService();
           if (await _bt!.isSupported()) {
+            await _bt!.startScan(); 
             _bt!.status.listen((msg) { if (mounted) setState(() => _btStatus = msg); });
-            _bt!.moveReceived.listen(_applyOpponentMove);
+            _bt!.moveReceived.listen((move) => _onBoardMove(move, isRemote: true));
           }
           break;
       }
@@ -122,8 +125,8 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
 
   // ── Move Logic ─────────────────────────────────────────────────────────────
 
-  void _onBoardMove(String uci) {
-    if (uci.length < 4 || _game.game_over) return;
+  void _onBoardMove(String uci, {bool isRemote = false}) {
+    if (!mounted || uci.length < 4 || _game.game_over) return;
     final from = uci.substring(0, 2);
     final to = uci.substring(2, 4);
 
@@ -131,7 +134,9 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
       final move = _game.move({'from': from, 'to': to, 'promotion': 'q'});
       if (move != null) {
         _trackCapture(move);
-        _onMoveExecuted(uci);
+        if (_user.vibrationEnabled) Vibration.vibrate(duration: 30);
+        setState(() => _moveHistory.add(uci));
+        _handleAfterMove(uci, isRemote: isRemote);
       }
     } catch (e) {
       debugPrint('[Chess] Invalid move: $e');
@@ -142,7 +147,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     final captured = move['captured'];
     if (captured != null) {
       final color = move['color'];
-      if (color == 'w') { _whiteCaptured.add(captured as String); } else { _blackCaptured.add(captured as String); }
+      if (color == 'w') { _blackCaptured.add(captured as String); } else { _whiteCaptured.add(captured as String); }
       _sound?.playCapture();
     } else {
       _sound?.playMove();
@@ -150,49 +155,33 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     if (_game.in_check) _sound?.playCheck();
   }
 
-  void _onMoveExecuted(String lastUci) {
+  void _handleAfterMove(String lastUci, {bool isRemote = false}) {
     _updateStatus();
-    if (_user.vibrationEnabled) Vibration.vibrate(duration: 30);
-    if (mounted) setState(() => _moveHistory.add(lastUci));
 
-    if (widget.mode == 'ai' && !_isWhiteTurn(_game)) { _triggerAiMove(_game.fen); }
-    if (widget.mode == 'sms' && widget.opponentPhone != null) { _sms?.sendMove(phoneNumber: widget.opponentPhone!, uciMove: lastUci); }
-    if (widget.mode == 'bluetooth') { _bt?.sendMove(lastUci); }
-    setState(() {});
-  }
+    if (_game.game_over) return;
 
-  void _applyOpponentMove(String uciMove) {
-    if (!mounted || uciMove.length < 4 || _game.game_over) return;
-    try {
-      final from = uciMove.substring(0, 2);
-      final to = uciMove.substring(2, 4);
-      final move = _game.move({'from': from, 'to': to, 'promotion': 'q'});
-      if (move != null) {
-        _trackCapture(move);
-        _updateStatus();
-        setState(() => _moveHistory.add(uciMove));
-      }
-    } catch (e) {
-      debugPrint('[Chess] applyOpponentMove error: $e');
+    if (widget.mode == 'ai' && !_isWhiteTurn(_game)) {
+      _triggerAiMove();
+    }
+
+    if (!isRemote) {
+      if (widget.mode == 'sms' && widget.opponentPhone != null) { _sms?.sendMove(phoneNumber: widget.opponentPhone!, uciMove: lastUci); }
+      if (widget.mode == 'bluetooth') { _bt?.sendMove(lastUci); }
     }
   }
 
-  Future<void> _triggerAiMove(String fen) async {
-    if (_ai == null || _aiThinking) return;
-    setState(() => _aiThinking = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    final best = await _ai!.getBestMove(fen);
-    if (best != null && best.length >= 4) {
-      final from = best.substring(0, 2);
-      final to = best.substring(2, 4);
-      final move = _game.move({'from': from, 'to': to, 'promotion': 'q'});
-      if (move != null) {
-        _trackCapture(move);
-        _updateStatus();
-        setState(() => _moveHistory.add(best));
-      }
+  Future<void> _triggerAiMove() async {
+    if (_ai == null || _aiThinking || _game.game_over) return;
+    
+    _aiThinking = true;
+    final fenSnapshot = _game.fen;
+    
+    final best = await _ai!.getBestMove(fenSnapshot);
+    _aiThinking = false;
+    
+    if (best != null && best.length >= 4 && mounted) {
+      _onBoardMove(best, isRemote: true);
     }
-    setState(() => _aiThinking = false);
   }
 
   void _updateStatus() {
@@ -332,7 +321,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
                       alignment: WrapAlignment.end,
                       spacing: 4,
                       runSpacing: 4,
-                      children: captured.map((p) => _getCapturedPieceIcon(p, !isClient)).toList(),
+                      children: captured.map((p) => _getCapturedPieceIcon(p, isClient)).toList(),
                     ),
             ),
           ),
@@ -362,7 +351,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
           borderRadius: BorderRadius.circular(12),
           child: SimpleChessBoard(
             fen: _game.fen,
-            onMove: ({required ShortMove move}) => _onBoardMove(move.from + move.to),
+            onMove: ({required ShortMove move}) => _onBoardMove(move.from + move.to, isRemote: false),
             whitePlayerType: PlayerType.human,
             blackPlayerType: widget.mode == 'ai' ? PlayerType.computer : PlayerType.human,
             showPossibleMoves: true,

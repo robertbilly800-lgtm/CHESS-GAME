@@ -40,8 +40,8 @@ class AiService {
       }
 
       debugPrint('[AI] Sending UCI handshake...');
-      _stockfish!.stdin = 'uci';
-      _stockfish!.stdin = 'isready';
+      _stockfish!.stdin = 'uci\n';
+      _stockfish!.stdin = 'isready\n';
       
       await Future.delayed(const Duration(milliseconds: 1000));
       
@@ -61,7 +61,7 @@ class AiService {
   void setDifficulty(int level) {
     if (!_isHardwareSupported || !_isReady || _stockfish == null) return;
     final skill = (level.clamp(1, 20) - 1);
-    _stockfish!.stdin = 'setoption name Skill Level value $skill';
+    _stockfish!.stdin = 'setoption name Skill Level value $skill\n';
   }
 
   Future<String?> getBestMove(String fen, {int movetime = 800}) async {
@@ -88,8 +88,8 @@ class AiService {
       }
     });
 
-    _stockfish!.stdin = 'position fen $fen';
-    _stockfish!.stdin = 'go movetime $movetime';
+    _stockfish!.stdin = 'position fen $fen\n';
+    _stockfish!.stdin = 'go movetime $movetime\n';
 
     final result = await completer.future;
     _thinking = false;

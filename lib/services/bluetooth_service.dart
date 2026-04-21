@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // GATT UUIDs for chess protocol
 const _svcUuid  = '12345678-1234-1234-1234-123456789abc';
@@ -44,6 +45,7 @@ class ChessBluetoothService {
   Future<void> startScan() async {
     try {
       if (!await isSupported()) { _emit('Bluetooth not supported.'); return; }
+      await [Permission.bluetooth, Permission.bluetoothConnect, Permission.bluetoothScan, Permission.locationWhenInUse].request();
       final state = await FlutterBluePlus.adapterState.first;
       if (state != BluetoothAdapterState.on) { _emit('Bluetooth is OFF.'); return; }
       await FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));

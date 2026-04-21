@@ -1,5 +1,6 @@
 import 'package:another_telephony/telephony.dart';
 import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // Top-level function for background message handling
 @pragma('vm:entry-point')
@@ -16,8 +17,10 @@ class SmsService {
 
   Future<void> listenForMoves({required Function(String) onMoveReceived}) async {
     _onMoveReceived = onMoveReceived;
-    final granted = await _telephony.requestSmsPermissions;
-    if (granted != true) {
+    final sms = await Permission.sms.request();
+    final phone = await Permission.phone.request();
+    final granted = (sms.isGranted && phone.isGranted) || await _telephony.requestSmsPermissions == true;
+    if (!granted) {
       debugPrint('[SMS] Permissions not granted');
       return;
     }
@@ -28,7 +31,7 @@ class SmsService {
         debugPrint('[SMS] Received: $body');
         
         // Robust UCI move detection
-        final uciRegex = RegExp(r'([a-h][1-8][a-h][1-8])');
+        final uciRegex = RegExp(r'([a-h][1-8][a-h][1-8][qrbn]?)');
         final match = uciRegex.firstMatch(body.toLowerCase());
         
         if (match != null) {
@@ -55,8 +58,8 @@ class SmsService {
       onResult?.call(false);
       return;
     }
-    final granted = await _telephony.requestSmsPermissions;
-    if (granted != true) {
+    final sms2 = await Permission.sms.request();
+    if (!sms2.isGranted) {
       onResult?.call(false);
       return;
     }

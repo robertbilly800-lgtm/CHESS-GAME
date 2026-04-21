@@ -362,6 +362,7 @@ class _ChessboardState extends State<_Chessboard> {
   @override
   Widget build(BuildContext context) {
     final board = GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTapUp: _handleTap,
       onPanStart: _handlePanStart,
       onPanUpdate: _handlePanUpdate,
