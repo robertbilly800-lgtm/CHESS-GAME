@@ -1,15 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import '../widgets/chess/simple_chess_board.dart';
 import 'package:chess/chess.dart' as ch;
-import 'package:google_fonts/google_fonts.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:vibration/vibration.dart';
 
+import '../widgets/chess/simple_chess_board.dart';
 import '../theme/app_colors.dart';
-import '../services/ai_service.dart';
-import '../services/sms_service.dart';
-import '../services/bluetooth_service.dart';
 import '../services/sound_service.dart';
 import '../services/user_service.dart';
 
@@ -17,208 +11,155 @@ bool _isWhiteTurn(ch.Chess game) => game.turn == ch.Color.WHITE;
 
 class ChessScreen extends StatefulWidget {
   final String mode;
-  final String? opponentPhone;
-  final String? username;
-  final int? userElo;
 
-  const ChessScreen({
-    super.key,
-    this.mode = 'local',
-    this.opponentPhone,
-    this.username,
-    this.userElo,
-  });
+  const ChessScreen({super.key, this.mode = 'local'});
 
   @override
   State<ChessScreen> createState() => _ChessScreenState();
 }
 
 class _ChessScreenState extends State<ChessScreen> {
-  ch.Chess _game = ch.Chess();
-  List<String> _moveHistory = [];
+  final ch.Chess _game = ch.Chess();
+  final List<String> _moveHistory = [];
 
-  AiService? _ai;
-  SmsService? _sms;
-  ChessBluetoothService? _bt;
-  SoundService? _sound;
+  final SoundService _sound = SoundService();
   final UserService _user = UserService();
 
-  bool _isHardwareValid = true;
-  String _errorMsg = '';
-  bool _aiThinking = false;
-
-  List<String> _whiteCaptured = [];
-  List<String> _blackCaptured = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _initServices();
-  }
-
-  @override
-  void dispose() {
-    _ai?.dispose();
-    super.dispose();
-  }
-
-  Future<void> _initServices() async {
-    _sound = SoundService();
-
-    try {
-      if (widget.mode == 'ai') {
-        _ai = AiService();
-        await _ai!.init();
-      }
-
-      if (widget.mode == 'sms') {
-        _sms = SmsService();
-        if (await _sms!.isSupported()) {
-          final granted = await _requestSmsPermissions();
-          if (granted) {
-            _sms!.listenForMoves(
-              onMoveReceived: (move) => _onBoardMove(move, isRemote: true),
-            );
-          }
-        }
-      }
-
-      if (widget.mode == 'bluetooth') {
-        _bt = ChessBluetoothService();
-        if (await _bt!.isSupported()) {
-          await _bt!.startScan();
-          _bt!.moveReceived.listen(
-            (move) => _onBoardMove(move, isRemote: true),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() {
-        _isHardwareValid = false;
-        _errorMsg = 'Service error';
-      });
-    }
-  }
-
-  Future<bool> _requestSmsPermissions() async {
-    final s = await Permission.sms.request();
-    final p = await Permission.phone.request();
-    return s.isGranted && p.isGranted;
-  }
-
-  void _onBoardMove(String uci, {bool isRemote = false}) {
-    if (uci.length < 4 || _game.game_over) return;
-
-    final success = _game.move({
-      'from': uci.substring(0, 2),
-      'to': uci.substring(2, 4),
-      'promotion': 'q',
-    });
-
-    if (success) {
-      final history = _game.history;
-
-      if (history.isNotEmpty) {
-        final lastMove = history.last;
-
-        final captured = lastMove['captured'];
-        if (captured != null) {
-          if (lastMove['color'] == 'w') {
-            _blackCaptured.add(captured);
-          } else {
-            _whiteCaptured.add(captured);
-          }
-        }
-      }
-
-      if (_user.vibrationEnabled) {
-        Vibration.vibrate(duration: 30);
-      }
-
-      setState(() {
-        _moveHistory.add(uci);
-      });
-
-      if (widget.mode == 'ai' && !_isWhiteTurn(_game)) {
-        _triggerAiMove();
-      }
-    }
-  }
-
-  Future<void> _triggerAiMove() async {
-    if (_ai == null || _aiThinking) return;
-
-    _aiThinking = true;
-    final best = await _ai!.getBestMove(_game.fen);
-    _aiThinking = false;
-
-    if (best != null) {
-      _onBoardMove(best, isRemote: true);
-    }
-  }
+  String _status = "White's turn";
 
   @override
   Widget build(BuildContext context) {
-    if (!_isHardwareValid) {
-      return Scaffold(
-        body: Center(child: Text(_errorMsg)),
-      );
-    }
-
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          const SizedBox(height: 40),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(child: _buildBoard()),
+            _buildStatus(),
+            _buildHistory(),
+          ],
+        ),
+      ),
+    );
+  }
 
-          Text(
-            "Chess Game",
-            style: GoogleFonts.syne(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+  // ───────────────── HEADER ─────────────────
 
-          const SizedBox(height: 20),
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        const Spacer(),
+        IconButton(
+          icon: const Icon(Icons.undo, color: Colors.white),
+          onPressed: _undoMove,
+        ),
+      ],
+    );
+  }
 
-          Expanded(
-            child: SimpleChessBoard(
-              fen: _game.fen,
-              onMove: ({required ShortMove move}) {
-                _onBoardMove(move.from + move.to);
-              },
-              whitePlayerType: PlayerType.human,
-              blackPlayerType: widget.mode == 'ai'
-                  ? PlayerType.computer
-                  : PlayerType.human,
-              showPossibleMoves: true,
-              chessBoardColors: ChessBoardColors(),
+  // ───────────────── BOARD ─────────────────
 
-              onPromote: () async {
-                return PieceType.queen;
-              },
+  Widget _buildBoard() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: SimpleChessBoard(
+        fen: _game.fen,
+        whitePlayerType: PlayerType.human,
+        blackPlayerType: PlayerType.human,
 
-              onPromotionCommited: ({
-                required ShortMove moveDone,
-                required PieceType pieceType,
-              }) {},
+        onMove: ({required ShortMove move}) {
+          _handleMove(move.from + move.to);
+        },
 
-              onTap: ({required String cellCoordinate}) {},
-            ),
-          ),
+        onPromote: () async => PieceType.queen,
 
-          const SizedBox(height: 10),
+        onPromotionCommited: ({required ShortMove moveDone, required PieceType pieceType}) {},
 
-          Text(
-            _moveHistory.isEmpty
-                ? "No moves yet"
-                : _moveHistory.join(', '),
-            style: const TextStyle(color: Colors.white),
-          ),
+        showPossibleMoves: true,
+      ),
+    );
+  }
 
-          const SizedBox(height: 20),
-        ],
+  // ───────────────── MOVE LOGIC ─────────────────
+
+  void _handleMove(String uci) {
+    if (_game.game_over) return;
+
+    final from = uci.substring(0, 2);
+    final to = uci.substring(2, 4);
+
+    final result = _game.move({
+      'from': from,
+      'to': to,
+      'promotion': 'q',
+    });
+
+    // ❌ invalid move → ignore
+    if (result == null) return;
+
+    // ✅ play feedback
+    _sound.playMove();
+
+    if (_game.in_check) {
+      _sound.playCheck();
+    }
+
+    if (_user.vibrationEnabled) {
+      Vibration.vibrate(duration: 30);
+    }
+
+    setState(() {
+      _moveHistory.add(uci);
+      _updateStatus();
+    });
+  }
+
+  void _undoMove() {
+    _game.undo_move();
+    if (_moveHistory.isNotEmpty) {
+      _moveHistory.removeLast();
+    }
+    setState(() {
+      _updateStatus();
+    });
+  }
+
+  void _updateStatus() {
+    if (_game.in_checkmate) {
+      final winner = _isWhiteTurn(_game) ? "Black" : "White";
+      _status = "Checkmate! $winner wins";
+    } else if (_game.in_draw) {
+      _status = "Draw";
+    } else {
+      _status = _isWhiteTurn(_game) ? "White's turn" : "Black's turn";
+    }
+  }
+
+  // ───────────────── UI ─────────────────
+
+  Widget _buildStatus() {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Text(
+        _status,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+      ),
+    );
+  }
+
+  Widget _buildHistory() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      child: Text(
+        _moveHistory.isEmpty
+            ? "No moves yet"
+            : _moveHistory.join(" "),
+        style: const TextStyle(color: Colors.white70),
       ),
     );
   }
