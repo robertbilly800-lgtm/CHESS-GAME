@@ -12,7 +12,7 @@ class AiService {
 
   bool get isReady => _isReady;
   bool get isHardwareSupported => _isHardwareSupported;
-  bool get isThinking => _isThinking;
+  bool get isThinking => _thinking;
   String _errorMsg = '';
   String get errorMsg => _errorMsg;
 
