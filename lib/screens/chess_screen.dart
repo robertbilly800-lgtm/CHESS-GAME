@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:crashlog/crashlog.dart';          // ADDED for logging
 import '../widgets/chess/simple_chess_board.dart';
 import 'package:chess/chess.dart' as ch;
 import 'package:google_fonts/google_fonts.dart';
@@ -380,9 +379,6 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     return Scaffold(
       appBar: AppBar(
         title: Text('Chess ${widget.mode.toUpperCase()}'),
-        actions: const [
-          ErrorRecorderIconButton(),   // ADDED crashlog button
-        ],
         backgroundColor: AppColors.cardDark,
       ),
       backgroundColor: AppColors.background,
