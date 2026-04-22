@@ -11,8 +11,17 @@ bool _isWhiteTurn(ch.Chess game) => game.turn == ch.Color.WHITE;
 
 class ChessScreen extends StatefulWidget {
   final String mode;
+  final String? opponentPhone;
+  final String? username;
+  final int? userElo;
 
-  const ChessScreen({super.key, this.mode = 'local'});
+  const ChessScreen({
+    super.key,
+    this.mode = 'local',
+    this.opponentPhone,
+    this.username,
+    this.userElo,
+  });
 
   @override
   State<ChessScreen> createState() => _ChessScreenState();
@@ -81,6 +90,11 @@ class _ChessScreenState extends State<ChessScreen> {
         onPromotionCommited: ({required ShortMove moveDone, required PieceType pieceType}) {},
 
         showPossibleMoves: true,
+
+        // ✅ FIX: added required onTap parameter
+        onTap: ({required String cellCoordinate}) {
+          // Optional: handle board tap if needed
+        },
       ),
     );
   }
@@ -99,10 +113,8 @@ class _ChessScreenState extends State<ChessScreen> {
       'promotion': 'q',
     });
 
-    // ❌ invalid move → ignore
     if (result == null) return;
 
-    // ✅ play feedback
     _sound.playMove();
 
     if (_game.in_check) {
