@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:crashlog/crashlog.dart';          // ADDED for logging
 import '../widgets/chess/simple_chess_board.dart';
 import 'package:chess/chess.dart' as ch;
 import 'package:google_fonts/google_fonts.dart';
@@ -108,15 +109,21 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     _sound = SoundService();
     _sound!.setMuted(!_user.soundsEnabled);
 
+    debugPrint('[Chess] _initServices for mode: ${widget.mode}');
     try {
       switch (widget.mode) {
         case 'ai':
+          debugPrint('[Chess] Creating AiService...');
           _ai = AiService();
+          debugPrint('[Chess] Calling _ai!.init()...');
           await _ai!.init();
+          debugPrint('[Chess] _ai!.init() completed. isHardwareSupported=${_ai!.isHardwareSupported}');
           if (_ai!.isHardwareSupported) {
             _ai!.setDifficulty(_aiLevel);
             _startClock();
+            debugPrint('[Chess] AI mode ready.');
           } else {
+            debugPrint('[Chess] AI not supported: ${_ai!.errorMsg}');
             setState(() { _isHardwareValid = false; _errorMsg = _ai!.errorMsg.isNotEmpty ? _ai!.errorMsg : 'AI not supported on this device.'; });
           }
           break;
@@ -233,6 +240,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     }
 
     if (widget.mode == 'ai' && !_isWhiteTurn(_game)) {
+      debugPrint('[Chess] Human move done, now triggering AI move');
       _triggerAiMove();
     }
     if (widget.mode == 'sms') {
@@ -268,25 +276,33 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
   }
 
   Future<void> _triggerAiMove() async {
+    debugPrint('[Chess] _triggerAiMove called. ai=${_ai != null}, aiThinking=$_aiThinking, gameOver=$_gameOver');
     if (_ai == null || _aiThinking || _gameOver) return;
     setState(() => _aiThinking = true);
 
     await Future.delayed(const Duration(milliseconds: 300));
 
     final fen = _game.fen;
+    debugPrint('[Chess] Asking AI for best move. fen=$fen');
     final best = await _ai!.getBestMove(fen, movetime: 600);
+    debugPrint('[Chess] AI returned best move: $best');
     if (!mounted) return;
 
     if (best != null && best.length >= 4) {
       final dynamic m = _game.move({'from': best.substring(0, 2), 'to': best.substring(2, 4), 'promotion': 'q'});
       if (m != null) {
+        debugPrint('[Chess] AI move applied: $best');
         _moveAnimCtrl.forward(from: 0);
         if (m['captured'] != null) _sound?.playCapture(); else _sound?.playMove();
         if (_game.in_check) _sound?.playCheck();
         _updateStatus();
         if (_game.game_over) { _clockTimer?.cancel(); _sound?.playGameOver(); _gameOver = true; _showGameOverDialog(); }
         setState(() => _moveHistory.add(best));
+      } else {
+        debugPrint('[Chess] AI move $best was illegal!');
       }
+    } else {
+      debugPrint('[Chess] AI returned null or invalid move');
     }
     setState(() => _aiThinking = false);
   }
@@ -364,6 +380,9 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
     return Scaffold(
       appBar: AppBar(
         title: Text('Chess ${widget.mode.toUpperCase()}'),
+        actions: const [
+          ErrorRecorderIconButton(),   // ADDED crashlog button
+        ],
         backgroundColor: AppColors.cardDark,
       ),
       backgroundColor: AppColors.background,
@@ -540,7 +559,7 @@ class _ChessScreenState extends State<ChessScreen> with TickerProviderStateMixin
             showCoordinatesZone: true,
             onPromote: () async => PieceType.queen,
             onPromotionCommited: ({required ShortMove moveDone, required PieceType pieceType}) {},
-            onTap: ({required String cellCoordinate}) {},  // ✅ REQUIRED PARAMETER ADDED
+            onTap: ({required String cellCoordinate}) {},
           ),
         ),
       ),
